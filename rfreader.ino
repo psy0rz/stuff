@@ -26,6 +26,15 @@ void wave_reset(Wave & wave)
   wave.data_count=0;
 }
 
+//returns true if waves match
+boolean wave_compare(Wave & wave_a, Wave & wave_b)
+{
+  if (wave_a.data_count != wave_b.data_count)
+    return (false);
+    
+  return (memcmp(wave_a.data, wave_b.data, wave_a.data_count)==0);
+}
+
 
 ////////////////////// setup
 //current state of the signal (high or low)
@@ -47,6 +56,11 @@ int border_time=0;
 //the new wave we're currently collecting
 Wave new_wave;
 
+//the stored waves
+unsigned int waves_count=0;
+#define WAVES_MAX 10
+Wave waves[WAVES_MAX];
+
 void setup() {
   Serial.begin(115200);
   pinMode(2, INPUT);
@@ -67,13 +81,45 @@ void loop() {
   //amount of time that has passed since last state change:
   int state_time=timestamp-state_timestamp;
 
-  //timeout, reset everything
-  if (((state_time>MAX_TIME) || (state_time>border_time*3)) && state_changes)
+  //timeout, end of wave.
+  if ((
+        (state_time>MAX_TIME) ||     //generic timeout
+        (state_time>border_time*3)   //current wave probably has just ended
+       ) && state_changes)
   {
-      
-      if (new_wave.data_count)
+      //got actual data?
+      if (new_wave.data_count>20)
+      {
+        //show it
         wave_dump(new_wave);
+        
+        //try to find existing wave or store it
+        boolean found=false;
+        for (int waves_nr=0; waves_nr<waves_count; waves_nr++)
+        {
+          if (wave_compare(new_wave, waves[waves_nr]))
+          {
+            Serial.print("MATCHED: ");
+            Serial.println(waves_nr);
+            found=true;
+            break;
+          }
+        }
 
+        //not found, store wave in memory
+        if (!found)
+        {
+          if (waves_count<WAVES_MAX)
+          {
+            waves_count++;
+            waves[waves_count]=new_wave;
+          }
+        }
+        
+        
+      }
+      
+      //reset everything
       state_changes=0;
       border_time=MAX_TIME;
       current_state=new_state;

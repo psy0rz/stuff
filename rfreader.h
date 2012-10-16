@@ -2,8 +2,8 @@
 
 
 #define MAX_TIME 10000 
-#define PREAMBLE 10
-#define MAX_DATA 1000
+#define PREAMBLE 5
+#define MAX_DATA 100
 
 //universal definition of a 433mhz 'wave'.
 //we assume a few things here:
