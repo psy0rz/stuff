@@ -68,12 +68,14 @@ void loop() {
   int state_time=timestamp-state_timestamp;
 
   //timeout, reset everything
-  if (state_time>MAX_TIME && state_changes)
+  if (((state_time>MAX_TIME) || (state_time>border_time*3)) && state_changes)
   {
+      
       if (new_wave.data_count)
         wave_dump(new_wave);
 
       state_changes=0;
+      border_time=MAX_TIME;
       current_state=new_state;
       wave_reset(new_wave);
   }
