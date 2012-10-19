@@ -1,7 +1,7 @@
 #include "Arduino.h"
 
 
-#define MAX_TIME 10000 
+#define MAX_TIME 2000 
 #define PREAMBLE 5
 #define MAX_DATA 100
 

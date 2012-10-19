@@ -35,7 +35,6 @@ boolean wave_compare(Wave & wave_a, Wave & wave_b)
   return (memcmp(wave_a.data, wave_b.data, wave_a.data_count)==0);
 }
 
-
 ////////////////////// setup
 //current state of the signal (high or low)
 boolean current_state=false;
@@ -69,15 +68,69 @@ void setup() {
   
   wave_reset(new_wave);
 
+  attachInterrupt(0, state_isr, CHANGE);
+
+}
+
+
+
+////////////////////// state of the input pin changed
+void state_isr()
+{
+  int timestamp=micros();
+  //amount of time that has passed since last state change:
+  int state_time=timestamp-state_timestamp;
+
+  state_changes++;
+  
+  //preamble just finished..signal should be stable now:
+  if (state_changes==PREAMBLE)
+  {
+    //determine high and low times
+    if (state_time>prev_state_time)
+    {
+      new_wave.high_time=state_time;
+      new_wave.low_time=prev_state_time;
+    }
+    else
+    {
+      new_wave.high_time=prev_state_time;
+      new_wave.low_time=state_time;
+    }
+    border_time=((new_wave.high_time-new_wave.low_time)/2) + new_wave.low_time;
+  }
+
+  //preamble is done, we're collecting actual data:
+  if (state_changes>=PREAMBLE)
+  {
+    //databuffer is not full yet?
+    if (new_wave.data_count < MAX_DATA)
+    {
+      if (state_time>border_time)
+      {
+        new_wave.data[new_wave.data_count]=true;
+      }
+      else
+      {
+        new_wave.data[new_wave.data_count]=false;
+      }
+      new_wave.data_count++;
+    }
+  }
+  
+  //store new state and the timestamp
+  state_timestamp=timestamp;
+  prev_state_time=state_time;
+
 }
 
 
 ///////////////////// main loop
-
 void loop() {
-  int new_state = digitalRead(2);
+//  int new_state = digitalRead(2);
+int new_state=0;
+
   int timestamp=micros();
-  
   //amount of time that has passed since last state change:
   int state_time=timestamp-state_timestamp;
 
@@ -107,14 +160,14 @@ void loop() {
         }
 
         //not found, store wave in memory
-        if (!found)
-        {
-          if (waves_count<WAVES_MAX)
-          {
-            waves_count++;
-            waves[waves_count]=new_wave;
-          }
-        }
+//        if (!found)
+//        {
+//          if (waves_count<WAVES_MAX)
+//          {
+//            waves_count++;
+//            waves[waves_count]=new_wave;
+//          }
+//        }
         
         
       }
@@ -126,51 +179,6 @@ void loop() {
       wave_reset(new_wave);
   }
 
-  //input state changed?
-  if (new_state!=current_state)
-  {
-    state_changes++;
-    
-    //preamble just finished..signal should be stable now:
-    if (state_changes==PREAMBLE)
-    {
-      //determine high and low times
-      if (state_time>prev_state_time)
-      {
-        new_wave.high_time=state_time;
-        new_wave.low_time=prev_state_time;
-      }
-      else
-      {
-        new_wave.high_time=prev_state_time;
-        new_wave.low_time=state_time;
-      }
-      border_time=((new_wave.high_time-new_wave.low_time)/2) + new_wave.low_time;
-    }
-
-    //preamble is done, we're collecting actual data:
-    if (state_changes>=PREAMBLE)
-    {
-      //databuffer is not full yet?
-      if (new_wave.data_count < MAX_DATA)
-      {
-        if (state_time>border_time)
-        {
-          new_wave.data[new_wave.data_count]=true;
-        }
-        else
-        {
-          new_wave.data[new_wave.data_count]=false;
-        }
-        new_wave.data_count++;
-      }
-    }
-    
-    //store new state and the timestamp
-    current_state=new_state;
-    state_timestamp=timestamp;
-    prev_state_time=state_time;
-  }
 }
 
 
