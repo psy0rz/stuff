@@ -3,15 +3,13 @@
 
 void wave_dump(Wave & wave)
 {
-  Serial.print("High time :");
-  Serial.println(wave.high_time);
-  Serial.print("Low time  :");
-  Serial.println(wave.low_time);
+//  Serial.print("High time :");
+//  Serial.println(wave.high_time);
+//  Serial.print("Low time  :");
+//  Serial.println(wave.low_time);
 
   Serial.print("Data      :");
     Serial.print(wave.data);
-  
-  Serial.println("");
   Serial.println("");
 }
 
