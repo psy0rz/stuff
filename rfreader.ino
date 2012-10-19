@@ -3,10 +3,10 @@
 
 void wave_dump(Wave & wave)
 {
-//  Serial.print("High time :");
-//  Serial.println(wave.high_time);
-//  Serial.print("Low time  :");
-//  Serial.println(wave.low_time);
+  Serial.print("High time :");
+  Serial.println(wave.high_time);
+  Serial.print("Low time  :");
+  Serial.println(wave.low_time);
 
   Serial.print("Data      :");
     Serial.print(wave.data);
@@ -159,6 +159,9 @@ int new_state=0;
       {
 
         //show it
+        Serial.print("avg_time: ");
+        Serial.println(avg_time);
+        
         wave_dump(new_wave);
         
         //try to find existing wave or store it
