@@ -7,12 +7,9 @@ void wave_dump(Wave & wave)
   Serial.println(wave.high_time);
   Serial.print("Low time  :");
   Serial.println(wave.low_time);
-  Serial.print("Data count:");
-  Serial.println(wave.data_count);
 
   Serial.print("Data      :");
-  for (int data_nr=0; data_nr<wave.data_count; data_nr++)
-    Serial.print(wave.data[data_nr]);
+    Serial.print(wave.data);
   
   Serial.println("");
   Serial.println("");
@@ -23,16 +20,13 @@ void wave_reset(Wave & wave)
 {
   wave.high_time=0;
   wave.low_time=0;
-  wave.data_count=0;
+  wave.data=0;
 }
 
 //returns true if waves match
 boolean wave_compare(Wave & wave_a, Wave & wave_b)
 {
-  if (wave_a.data_count != wave_b.data_count)
-    return (false);
-    
-  return (memcmp(wave_a.data, wave_b.data, wave_a.data_count)==0);
+  return(wave_a.data==wave_b.data);
 }
 
 ////////////////////// setup
@@ -46,11 +40,15 @@ unsigned long state_timestamp=0;
 unsigned int state_changes=0;
 
 //length of previous state change
-int prev_state_time=0;
+//int prev_state_time=0;
+boolean prev_data_bit=false;
 
-//current border time that is used to determine if a bit is high or low.
-//this time is automaticly determined at the end of the preamble
-int border_time=0;
+//average time (moving average)
+int avg_time=0;
+int avg_high_time=0;
+int avg_low_time=0;
+
+boolean preamble_done=false;
 
 //the new wave we're currently collecting
 Wave new_wave;
@@ -77,50 +75,68 @@ void setup() {
 ////////////////////// state of the input pin changed
 void state_isr()
 {
+  state_changes++;
+
   int timestamp=micros();
+
   //amount of time that has passed since last state change:
   int state_time=timestamp-state_timestamp;
 
-  state_changes++;
-  
-  //preamble just finished..signal should be stable now:
-  if (state_changes==PREAMBLE)
+  //keep a moving average of the state-change-time. 
+  avg_time=((AVG_N-1)*avg_time + state_time)/AVG_N;
+
+  //determine if the databit is high or low
+  boolean data_bit;
+  if (state_time>avg_time)
   {
-    //determine high and low times
-    if (state_time>prev_state_time)
+    data_bit=true;
+    avg_high_time=((AVG_N-1)*avg_high_time + state_time)/AVG_N;
+  }
+  else
+  {
+    data_bit=false;
+    avg_low_time=((AVG_N-1)*avg_low_time + state_time)/AVG_N;
+  }
+    
+ 
+ //we're still in preamble mode.
+  //we wait for the avg_time to smooth out, and until a certain amount of preamble bits where seen
+  if (state_changes<MIN_PREAMBLE)
+  {
+    //we've seen double bits too early, assume garbage or out-of-sync
+    if (data_bit==prev_data_bit)
     {
-      new_wave.high_time=state_time;
-      new_wave.low_time=prev_state_time;
+      state_changes=0;
     }
-    else
-    {
-      new_wave.high_time=prev_state_time;
-      new_wave.low_time=state_time;
-    }
-    border_time=((new_wave.high_time-new_wave.low_time)/2) + new_wave.low_time;
+    preamble_done=false;
   }
 
-  //preamble is done, we're collecting actual data:
-  if (state_changes>=PREAMBLE)
+  //we seem to be in sync, and the minimum preamble was seen
+  else
   {
-    //databuffer is not full yet?
-    if (new_wave.data_count < MAX_DATA)
+    //wait for the preamble to finish
+    if (!preamble_done)
     {
-      if (state_time>border_time)
+      //the preamble finishes when we see double bits
+      if (data_bit==prev_data_bit)
       {
-        new_wave.data[new_wave.data_count]=true;
+        preamble_done=true;
+        new_wave.high_time=avg_high_time;
+        new_wave.low_time=avg_low_time;
       }
-      else
-      {
-        new_wave.data[new_wave.data_count]=false;
-      }
-      new_wave.data_count++;
+    }
+    
+    //preamble is done, store databit
+    if (preamble_done)
+    {
+      new_wave.data=new_wave.data<<1;
+      bitWrite(new_wave.data, 0, data_bit);
     }
   }
   
-  //store new state and the timestamp
+  //store new state and data_bit
   state_timestamp=timestamp;
-  prev_state_time=state_time;
+  prev_data_bit=data_bit;
 
 }
 
@@ -137,12 +153,13 @@ int new_state=0;
   //timeout, end of wave.
   if ((
         (state_time>MAX_TIME) ||     //generic timeout
-        (state_time>border_time*3)   //current wave probably has just ended
+        (state_time>avg_time*3)   //current wave probably has just ended
        ) && state_changes)
   {
-      //got actual data?
-      if (new_wave.data_count>20)
+      //got enough data?
+      if (new_wave.data>bit(7))
       {
+
         //show it
         wave_dump(new_wave);
         
@@ -174,7 +191,6 @@ int new_state=0;
       
       //reset everything
       state_changes=0;
-      border_time=MAX_TIME;
       current_state=new_state;
       wave_reset(new_wave);
   }
