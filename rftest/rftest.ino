@@ -1,60 +1,37 @@
 
-#include "rfreader.h"
+//#include "rfreader.h"
 
-void wave_dump(Wave & wave)
-{
-  Serial.print("High time :");
-  Serial.println(wave.high_time);
-  Serial.print("Low time  :");
-  Serial.println(wave.low_time);
+/*
+avg_time: 264
+High time :624
+Low time  :184
+*/
 
-  Serial.print("Data      :");
-    Serial.print(wave.data);
-  Serial.println("");
-}
-
-
-void wave_reset(Wave & wave)
-{
-  wave.high_time=0;
-  wave.low_time=0;
-  wave.data=0;
-}
-
-//returns true if waves match
-boolean wave_compare(Wave & wave_a, Wave & wave_b)
-{
-  return(wave_a.data==wave_b.data);
-}
 
 ////////////////////// setup
-//current state of the signal (high or low)
-boolean current_state=false;
 
-//the timestamp when we got this state
+//max time we can go without state-change. after this we assume the signal has ended.
+#define MAX_TIME 2000
+
+//number of samples to use for moving average
+#define AVG_N 4
+
+//the timestamp when we last changed state
 unsigned long state_timestamp=0;
 
-//the number of state changes since last reset
-unsigned int state_changes=0;
+//received bit nr since last reset
+unsigned int bit_nr=0;
 
-//length of previous state change
-//int prev_state_time=0;
-boolean prev_data_bit=false;
+//actual stored data bits
+#define MAX_BITS 128
+byte bits[MAX_BITS/8];
 
-//average time (moving average)
+//average times (moving averages)
 int avg_time=0;
 int avg_high_time=0;
 int avg_low_time=0;
 
-boolean preamble_done=false;
-
-//the new wave we're currently collecting
-Wave new_wave;
-
-//the stored waves
-unsigned int waves_count=0;
-#define WAVES_MAX 10
-Wave waves[WAVES_MAX];
+int pause_time=0;
 
 void setup() {
   Serial.begin(115200);
@@ -62,140 +39,103 @@ void setup() {
   
   Serial.println("starting..");
   
-  wave_reset(new_wave);
-
   attachInterrupt(0, state_isr, CHANGE);
 
 }
 
-
-
 ////////////////////// state of the input pin changed
 void state_isr()
 {
-  state_changes++;
 
-  int timestamp=micros();
+  unsigned long timestamp=micros();
 
   //amount of time that has passed since last state change:
   int state_time=timestamp-state_timestamp;
 
-  //keep a moving average of the state-change-time. 
-  avg_time=((AVG_N-1)*avg_time + state_time)/AVG_N;
-
-  //determine if the databit is high or low
-  boolean data_bit;
-  if (state_time>avg_time)
+  //was the change fast enough to be considered part of this signal?
+  if (state_time<MAX_TIME)
   {
-    data_bit=true;
-    avg_high_time=((AVG_N-1)*avg_high_time + state_time)/AVG_N;
+  
+    //keep a moving average of the state-change-time. 
+    avg_time=((AVG_N-1)*avg_time + state_time)/AVG_N;
+  
+    //determine if the databit is high or low
+    boolean data_bit;
+    if (state_time>avg_time)
+    {
+      data_bit=true;
+      avg_high_time=((AVG_N-1)*avg_high_time + state_time)/AVG_N;
+    }
+    else
+    {
+      data_bit=false;
+      avg_low_time=((AVG_N-1)*avg_low_time + state_time)/AVG_N;
+    }
+
+    //store it in bits array:
+    bitWrite(bits[bit_nr/8], 7-(bit_nr%8), data_bit);
+    bit_nr++;
+
   }
   else
   {
-    data_bit=false;
-    avg_low_time=((AVG_N-1)*avg_low_time + state_time)/AVG_N;
-  }
-    
- 
- //we're still in preamble mode.
-  //we wait for the avg_time to smooth out, and until a certain amount of preamble bits where seen
-  if (state_changes<MIN_PREAMBLE)
-  {
-    //we've seen double bits too early, assume garbage or out-of-sync
-    if (data_bit==prev_data_bit)
-    {
-      state_changes=0;
-    }
-    preamble_done=false;
-  }
-
-  //we seem to be in sync, and the minimum preamble was seen
-  else
-  {
-    //wait for the preamble to finish
-    if (!preamble_done)
-    {
-      //the preamble finishes when we see double bits
-      if (data_bit==prev_data_bit)
-      {
-        preamble_done=true;
-        new_wave.high_time=avg_high_time;
-        new_wave.low_time=avg_low_time;
-      }
-    }
-    
-    //preamble is done, store databit
-    if (preamble_done)
-    {
-      new_wave.data=new_wave.data<<1;
-      bitWrite(new_wave.data, 0, data_bit);
-    }
+    //store the pause between 2 signals
+    pause_time=state_time;
+    bit_nr=0;
   }
   
-  //store new state and data_bit
+  //store timestamp
   state_timestamp=timestamp;
-  prev_data_bit=data_bit;
 
 }
 
 
 ///////////////////// main loop
 void loop() {
-//  int new_state = digitalRead(2);
-int new_state=0;
+  unsigned long timestamp=micros();
 
-  int timestamp=micros();
   //amount of time that has passed since last state change:
   int state_time=timestamp-state_timestamp;
 
   //timeout, end of wave.
-  if ((
-        (state_time>MAX_TIME) ||     //generic timeout
-        (state_time>avg_time*3)   //current wave probably has just ended
-       ) && state_changes)
+  if ((state_time>MAX_TIME) && bit_nr)
   {
-      //got enough data?
-      if (new_wave.data>bit(7))
+      if (bit_nr>=32)
       {
+/*
+        Serial.print("pause_time: ");
+        Serial.println(pause_time);
 
-        //show it
         Serial.print("avg_time: ");
         Serial.println(avg_time);
-        
-        wave_dump(new_wave);
-        
-        //try to find existing wave or store it
-        boolean found=false;
-        for (int waves_nr=0; waves_nr<waves_count; waves_nr++)
+
+        Serial.print("avg_high_time: ");
+        Serial.println(avg_high_time);
+
+        Serial.print("avg_low_time: ");
+        Serial.println(avg_low_time);
+
+        Serial.print("bit_nr: ");
+        Serial.println(bit_nr);
+  */      
+        //show it
+        Serial.print("data: ");
+        char buf[MAX_BITS+1];
+        buf[0]=0;
+        for (int b=0; b<bit_nr; b++)
         {
-          if (wave_compare(new_wave, waves[waves_nr]))
-          {
-            Serial.print("MATCHED: ");
-            Serial.println(waves_nr);
-            found=true;
-            break;
-          }
+          if (bitRead(bits[b/8], 7-(b%8)))
+            strcat(buf,"1");
+          else
+            strcat(buf,"0");
         }
-
-        //not found, store wave in memory
-//        if (!found)
-//        {
-//          if (waves_count<WAVES_MAX)
-//          {
-//            waves_count++;
-//            waves[waves_count]=new_wave;
-//          }
-//        }
+        Serial.println(buf);
         
-        
+        if (micros()-timestamp > pause_time)
+          Serial.println("printing is too slow!");
       }
-      
-      //reset everything
-      state_changes=0;
-      current_state=new_state;
-      wave_reset(new_wave);
+      bit_nr=0;
   }
-
 }
 
 
