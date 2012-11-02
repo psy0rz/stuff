@@ -5,6 +5,22 @@
 avg_time: 264
 High time :624
 Low time  :184
+
+
+scope:
+1 high time: 450uS
+0 high time: 470uS
+1 low time: 140uS
+0 low time: 170uS
+
+9x (high+low)=5600uS 
+
+(high+low)=622uS
+
+460+160us?
+
+
+
 */
 
 
@@ -14,7 +30,7 @@ Low time  :184
 #define MAX_TIME 2000
 
 //number of samples to use for moving average
-#define AVG_N 4
+#define AVG_N 30
 
 //the timestamp when we last changed state
 unsigned long state_timestamp=0;
@@ -26,16 +42,21 @@ unsigned int bit_nr=0;
 #define MAX_BITS 128
 byte bits[MAX_BITS/8];
 
+float output_comp_time=0; //the send seems to need some compensation to be able to reproduce the same signal.
 //average times (moving averages)
-int avg_time=0;
-int avg_high_time=0;
-int avg_low_time=0;
+float avg_high_time=460-output_comp_time;
+float avg_low_time=160+output_comp_time;
+float avg_time=(avg_high_time+avg_low_time)/2;
+
 
 int pause_time=0;
+
+bool listening=true;
 
 void setup() {
   Serial.begin(115200);
   pinMode(2, INPUT);
+  pinMode(3, OUTPUT);
   
   Serial.println("starting..");
   
@@ -46,16 +67,19 @@ void setup() {
 ////////////////////// state of the input pin changed
 void state_isr()
 {
+  if (!listening)
+    return;
 
   unsigned long timestamp=micros();
 
   //amount of time that has passed since last state change:
-  int state_time=timestamp-state_timestamp;
+  unsigned long state_time=timestamp-state_timestamp;
 
   //was the change fast enough to be considered part of this signal?
   if (state_time<MAX_TIME)
   {
   
+
     //keep a moving average of the state-change-time. 
     avg_time=((AVG_N-1)*avg_time + state_time)/AVG_N;
   
@@ -65,6 +89,7 @@ void state_isr()
     {
       data_bit=true;
       avg_high_time=((AVG_N-1)*avg_high_time + state_time)/AVG_N;
+
     }
     else
     {
@@ -89,6 +114,7 @@ void state_isr()
 
 }
 
+int wave_count=0;
 
 ///////////////////// main loop
 void loop() {
@@ -130,12 +156,67 @@ void loop() {
             strcat(buf,"0");
         }
         Serial.println(buf);
+        Serial.println(avg_high_time);
+        Serial.println(avg_low_time);
+        Serial.println(pause_time);
         
         if (micros()-timestamp > pause_time)
-          Serial.println("printing is too slow!");
+          Serial.println("printing is too slow!"); 
+          
+        wave_count++;
+        if (wave_count>5)
+        {
+          wave_count=0;
+          //repeat the whole signal
+          listening=false;
+          Serial.println("sending..");
+          for (int i=0; i<5; i++)
+          {
+            delay(1000);
+  
+             //repeat bursts          
+            for (int burst=0; burst<10; burst++)
+            {
+              bool high=false;
+              //traverse the signal
+              unsigned long end_time=micros();
+              for (int b=0; b<bit_nr; b++)
+              {
+                if (high)
+                {
+                   digitalWrite(3, LOW);
+                   high=false;
+                }
+                else
+                {
+                   digitalWrite(3, HIGH);
+                   high=true;
+                }
+                
+                if (bitRead(bits[b/8], 7-(b%8)))
+                  end_time=end_time+avg_high_time;
+                else
+                  end_time=end_time+avg_low_time;
+                  
+                while(micros() < end_time)
+                {
+                  ;
+                }
+              }
+              digitalWrite(3, LOW);
+              delayMicroseconds(pause_time);
+            }
+          }
+          Serial.println("done sending.");
+        }
+        listening=true;
+   
+
       }
       bit_nr=0;
   }
+  
+
 }
 
 
