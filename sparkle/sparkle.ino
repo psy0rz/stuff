@@ -1,6 +1,6 @@
 #include <SPI.h>
 
-#define LED_COUNT 150 //not enough mem for more leds :(
+#define LED_COUNT 160
 
 //current rgbvalues
 byte curr_rgb[LED_COUNT][3];
@@ -9,7 +9,7 @@ byte want_rgb[LED_COUNT][3];
 //fade speed to reach the target with
 char fade_speed[LED_COUNT]; //we use the char just as an 'signed byte' ;)
 
-int fade_step=0;
+word fade_step=0;
 
 
 //sets the led to specified value on next update. 
