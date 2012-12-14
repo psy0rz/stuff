@@ -63,8 +63,7 @@ void setup() {
 void loop() {
   fade_step++;
   
-  //do a sparkle glide every time fade_step loops: 
-  //(hence when initalizing the first time)
+  //glide a red and green sparkle in opposite directions
   static byte glide_delay=40;
   static word
   glide_led=0;
@@ -72,6 +71,7 @@ void loop() {
   static char glide_tail_max=5;
   if (fade_step%glide_delay == 0)
   {
+
      led_set(glide_led, 0, 10, 0);
      led_fade_from(glide_led, 0,127,0, random(glide_tail_min, glide_tail_max));    
 
@@ -84,7 +84,7 @@ void loop() {
   }
 
 
-  //sparkle a random led sometimes
+  //sparkle a random led in blue sometimes
   static byte sparkles=100;
   static byte sparkle_max=1;
   if (random(100)==0)
