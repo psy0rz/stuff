@@ -1,6 +1,6 @@
 #include <SPI.h>
 
-#define LED_COUNT 150
+#define LED_COUNT 150 //not enough mem for more leds :(
 
 //current rgbvalues
 byte curr_rgb[LED_COUNT][3];
@@ -13,8 +13,7 @@ int fade_step=0;
 
 
 //sets the led to specified value on next update. 
-//no fading and stuff
-void led_set(led, r,g,b)
+void led_set(word led, byte r, byte g, byte b)
 {
   want_rgb[led][0]=r;  
   want_rgb[led][1]=g;  
@@ -25,6 +24,25 @@ void led_set(led, r,g,b)
   fade_speed[led]=0;
 }
 
+//fades from current value to target value.
+void led_fade_to(word led, byte r, byte g, byte b, char new_speed)
+{
+  want_rgb[led][0]=r;  
+  want_rgb[led][1]=g;  
+  want_rgb[led][2]=b;  
+  fade_speed[led]=new_speed;
+}
+
+//instantly sets the led to the specified value, and fades back to the current value.
+//(nice for sparkles :))
+void led_fade_from(word led, byte r, byte g, byte b, char new_speed)
+{
+  curr_rgb[led][0]=r;  
+  curr_rgb[led][1]=g;  
+  curr_rgb[led][2]=b;  
+  fade_speed[led]=new_speed;
+}
+
 void setup() {
   // Start SPI communication for the LEDstrip
   SPI.begin();
@@ -32,44 +50,54 @@ void setup() {
   SPI.setDataMode(SPI_MODE0);
   SPI.setClockDivider(SPI_CLOCK_DIV2);
   SPI.transfer(0); // 'Prime' the SPI bus with initial latch (no wait)
-  
-  for (int i; i<LED_COUNT; i++)
+
+  //initialize led array 
+  for (word led; led<LED_COUNT; led++)
   {
-    led_set(i, 0,0,0);
+    led_set(led, 0,0,0);
   }  
+    
 }
 
 void loop() {
   fade_step++;
   
-  //random modify   
+  //do a sparkle glide every time fade_step loops: 
+  //(hence when initalizing the first time)
+  const int glide_delay=50;
+  if (fade_step<(LED_COUNT*glide_delay))
+  {
+    if (fade_step%glide_delay == 0)
+    {
+      word led=fade_step/glide_delay;
+      led_set(led, 0, 0, 20);
+      led_fade_from(led, 0,127,0, random(1,10));    
+    }
+  }
+
+
+  //sparkle a led sometimes
   if (random(100)==0)
   {
-    byte l=random(LED_COUNT);
-//    byte c=random(3);
-    curr_rgb[l][0]=127;
-    curr_rgb[l][1]=127;
-    curr_rgb[l][2]=127;
-    want_rgb[l][0]=0;
-    want_rgb[l][1]=0;
-    want_rgb[l][2]=random(25,50);
-    fade_speed[l]=-1;
+    byte led=random(LED_COUNT);
+    led_fade_from(led, 127, 127, 127, random(1,4));    
   }
- 
  
  
   //////////////// below is the fade and send code, just leave it be.
   //(we could put it in a function but that costs performance)
  
   //update all the current and wanted values  
-  for (byte led = 0; led < LED_COUNT; led++) {    
+  for (word led = 0; led < LED_COUNT; led++) {    
     //FIRST send the current values, then do the fades
-    SPI.transfer(0x80 | (curr_rgb[led][0]));
     SPI.transfer(0x80 | (curr_rgb[led][1]));
+    SPI.transfer(0x80 | (curr_rgb[led][0]));
     SPI.transfer(0x80 | (curr_rgb[led][2]));
 
     //now do all the fades
     char s=fade_speed[led];
+    byte done=0;
+    
     if (s!=0)
     {
       //change by 1 , every s steps:
@@ -83,6 +111,8 @@ void loop() {
               curr_rgb[led][color]++;
             else if (want_rgb[led][color]<curr_rgb[led][color])
               curr_rgb[led][color]--;
+            else
+              done++;
           }
         }
       } 
@@ -96,7 +126,7 @@ void loop() {
           if (-s > abs(diff))
           {
             curr_rgb[led][color]=want_rgb[led][color];
-            fade_speed[led]=0;
+            done++;
           }
           else
           {
@@ -104,11 +134,15 @@ void loop() {
             if (diff>0)
               curr_rgb[led][color]-=s;
             //we need to decrease current value
-            else
-              curr_rgb[led][color]+=s;           
+            else if (diff<0)
+              curr_rgb[led][color]+=s;
+            else 
+              done++;
           }
         }
       }
+      if (done==3)
+        fade_speed[led]=0; //done fading, saves performance
     }
   }
    
