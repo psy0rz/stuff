@@ -2,28 +2,29 @@
 
 #define LED_COUNT 150
 
-const byte
-  redFrequency = 12,
-  greenFrequency = 15,
-  blueFrequency = 19,
-  intervalRed = 16,
-  intervalGreen = 12,
-  intervalBlue = 8;
-
-int index;
-long currentMillis, nextRed, nextGreen, nextBlue;
-boolean
-  enableRed = true,
-  enableGreen = true,
-  enableBlue = true;
-
 //current rgbvalues
 byte curr_rgb[LED_COUNT][3];
+//target rbgvalues
 byte want_rgb[LED_COUNT][3]; 
+//fade speed to reach the target with
 char fade_speed[LED_COUNT]; //we use the char just as an 'signed byte' ;)
 
-
 int fade_step=0;
+
+
+//sets the led to specified value on next update. 
+//no fading and stuff
+void led_set(led, r,g,b)
+{
+  want_rgb[led][0]=r;  
+  want_rgb[led][1]=g;  
+  want_rgb[led][2]=b;  
+  curr_rgb[led][0]=r;  
+  curr_rgb[led][1]=g;  
+  curr_rgb[led][2]=b;
+  fade_speed[led]=0;
+}
+
 void setup() {
   // Start SPI communication for the LEDstrip
   SPI.begin();
@@ -31,35 +32,16 @@ void setup() {
   SPI.setDataMode(SPI_MODE0);
   SPI.setClockDivider(SPI_CLOCK_DIV2);
   SPI.transfer(0); // 'Prime' the SPI bus with initial latch (no wait)
-//  Serial.begin(9600);
-
+  
+  for (int i; i<LED_COUNT; i++)
+  {
+    led_set(i, 0,0,0);
+  }  
 }
-
 
 void loop() {
   fade_step++;
-
-//  currentMillis = millis();
-/*  if (Serial.available()) {
-    switch (Serial.read()) {
-      case 'r':
-        enableRed = !enableRed;
-        break;
-      case 'g':
-        enableGreen = !enableGreen;
-        break;
-      case 'b':
-        enableBlue = !enableBlue;
-        break;
-    }
-  }
-  // Send three color bytes for all LEDs on the strip.
-  for (index = 0; index < LED_COUNT; index++) {
-    SPI.transfer(0x80 | ((enableBlue)  ? blueWave(index)  : 0));
-    SPI.transfer(0x80 | ((enableRed)   ? redWave(index)   : 0));
-    SPI.transfer(0x80 | ((enableGreen) ? greenWave(index) : 0));
-  }*/
-
+  
   //random modify   
   if (random(100)==0)
   {
@@ -73,29 +55,34 @@ void loop() {
     want_rgb[l][2]=random(25,50);
     fade_speed[l]=-1;
   }
-
+ 
+ 
+ 
+  //////////////// below is the fade and send code, just leave it be.
+  //(we could put it in a function but that costs performance)
+ 
   //update all the current and wanted values  
-  for (index = 0; index < LED_COUNT; index++) {
-    char s=fade_speed[index];
-
+  for (byte led = 0; led < LED_COUNT; led++) {    
     //FIRST send the current values, then do the fades
-    SPI.transfer(0x80 | (curr_rgb[index][0]));
-    SPI.transfer(0x80 | (curr_rgb[index][1]));
-    SPI.transfer(0x80 | (curr_rgb[index][2]));
+    SPI.transfer(0x80 | (curr_rgb[led][0]));
+    SPI.transfer(0x80 | (curr_rgb[led][1]));
+    SPI.transfer(0x80 | (curr_rgb[led][2]));
 
+    //now do all the fades
+    char s=fade_speed[led];
     if (s!=0)
     {
       //change by 1 , every s steps:
       if (s>0)
-     {
+      {
         if ((fade_step % s) == 0)
         {
           for (byte color=0; color<3; color++)
           {
-            if (want_rgb[index][color]>curr_rgb[index][color])
-              curr_rgb[index][color]++;
-            else if (want_rgb[index][color]<curr_rgb[index][color])
-              curr_rgb[index][color]--;
+            if (want_rgb[led][color]>curr_rgb[led][color])
+              curr_rgb[led][color]++;
+            else if (want_rgb[led][color]<curr_rgb[led][color])
+              curr_rgb[led][color]--;
           }
         }
       } 
@@ -104,18 +91,21 @@ void loop() {
       {
         for (byte color=0; color<3; color++)
         {
-          char diff=want_rgb[index][color]-curr_rgb[index][color];
+          char diff=want_rgb[led][color]-curr_rgb[led][color];
           //step size is greater than difference, just jump to it at once
           if (-s > abs(diff))
-            curr_rgb[index][color]=want_rgb[index][color];
+          {
+            curr_rgb[led][color]=want_rgb[led][color];
+            fade_speed[led]=0;
+          }
           else
           {
             //we need to increase current value (note that s is negative)
             if (diff>0)
-              curr_rgb[index][color]-=s;
+              curr_rgb[led][color]-=s;
             //we need to decrease current value
             else
-              curr_rgb[index][color]+=s;           
+              curr_rgb[led][color]+=s;           
           }
         }
       }
@@ -123,97 +113,7 @@ void loop() {
   }
    
   // Sending a byte with a MSB of zero enables the output
-  // Also resets the index at which new commands start.
+  // Also resets the led at which new commands start.
   SPI.transfer(0);
-  
-
-  
-
-}
-
-byte redWave(byte index) {
-  static byte counter = 0;
-  static byte pos = 0;
-  if (currentMillis >= nextRed) {
-    nextRed = currentMillis + intervalRed;
-    counter = (counter + 3) % 30;
-    if (counter == 0) {
-      pos = ++pos % redFrequency; // pos++; // run red lights in forward direction
-    }
-  }
-  switch ((index + pos) % redFrequency) {
-    case 0:
-      return counter / 2;
-    case 1:
-      return 15 + counter;
-    case 2:
-      return 45 + counter * 2;
-    case 3:
-      return 105 - counter * 2;
-    case 4:
-      return 45 - counter;
-    case 5:
-      return 15 - counter / 2;
-    default:
-      return 0;
-  }
-}
-
-byte blueWave(byte index) {
-  static byte counter = 0;
-  static byte pos = 0;
-  if (currentMillis >= nextBlue) {
-    nextBlue = currentMillis + intervalBlue;
-    counter = (counter + 3) % 30;
-    if (counter == 0) {
-      pos = ++pos % blueFrequency;
-    }
-  }
-  switch ((index + pos) % blueFrequency) {
-    case 0:
-      return counter / 2;
-    case 1:
-      return 15 + counter;
-    case 2:
-      return 45 + counter * 2;
-    case 3:
-      return 105 - counter * 2;
-    case 4:
-      return 45 - counter;
-    case 5:
-      return 15 - counter / 2;
-    default:
-      return 0;
-  }
-}
-
-byte greenWave(byte index) {
-  static byte counter = 0;
-  static byte pos = 0;
-  if (currentMillis >= nextGreen) {
-    nextGreen = currentMillis + intervalGreen;
-    counter = (counter + 3) % 30;
-    if (counter == 0) {
-      if (pos == 0)
-        pos = greenFrequency - 1;
-      else
-        --pos; // run green lights in opposite direction
-    }
-  }
-  switch ((index + pos) % greenFrequency) {
-    case 0:
-      return 15 - counter / 2;
-    case 1:
-      return 45 - counter;
-    case 2:
-      return 105 - counter * 2;
-    case 3:
-      return 45 + counter * 2;
-    case 4:
-      return 15 + counter;
-    case 5:
-      return counter / 2;
-    default:
-      return 0;
-  }
+ 
 }
