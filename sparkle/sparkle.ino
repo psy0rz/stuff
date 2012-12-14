@@ -51,12 +51,13 @@ void setup() {
   SPI.setClockDivider(SPI_CLOCK_DIV2);
   SPI.transfer(0); // 'Prime' the SPI bus with initial latch (no wait)
 
+  Serial.begin(9600);
+
   //initialize led array 
   for (word led; led<LED_COUNT; led++)
   {
     led_set(led, 0,0,0);
   }  
-    
 }
 
 void loop() {
@@ -64,24 +65,50 @@ void loop() {
   
   //do a sparkle glide every time fade_step loops: 
   //(hence when initalizing the first time)
-  const int glide_delay=50;
-  if (fade_step<(LED_COUNT*glide_delay))
+  static byte glide_delay=40;
+  static word
+  glide_led=0;
+  static char glide_tail_min=3;
+  static char glide_tail_max=5;
+  if (fade_step%glide_delay == 0)
   {
-    if (fade_step%glide_delay == 0)
-    {
-      word led=fade_step/glide_delay;
-      led_set(led, 0, 0, 20);
-      led_fade_from(led, 0,127,0, random(1,10));    
-    }
+     led_set(glide_led, 0, 10, 0);
+     led_fade_from(glide_led, 0,127,0, random(glide_tail_min, glide_tail_max));    
+
+     led_set(LED_COUNT-glide_led, 10, 0, 0);
+     led_fade_from(LED_COUNT-glide_led, 127,0,0, random(glide_tail_min, glide_tail_max));    
+
+     glide_led++;
+     if (glide_led>=LED_COUNT)
+       glide_led=0;
   }
 
 
-  //sparkle a led sometimes
+  //sparkle a random led sometimes
+  static byte sparkles=100;
+  static byte sparkle_max=1;
   if (random(100)==0)
   {
     byte led=random(LED_COUNT);
-    led_fade_from(led, 127, 127, 127, random(1,4));    
+    led_fade_from(led, 0,0, 127, random(sparkle_max)+1);    
   }
+
+  //////////////// adjust some parameters via serial on the fly
+  if (Serial.available()) {
+    switch (Serial.read()) {
+      case 'a':   glide_delay++;      break;
+      case 'z':   glide_delay--;      break;
+      case 's':   glide_tail_max++;   break;
+      case 'x':   glide_tail_max--;   break;
+      case 'd':   glide_tail_min++;   break;
+      case 'c':   glide_tail_min--;   break;
+      case 'f':   sparkles++;         break;
+      case 'v':   sparkles--;         break;
+      case 'g':   sparkle_max++;      break;
+      case 'b':   sparkle_max--;      break;
+    }
+  }
+
  
  
   //////////////// below is the fade and send code, just leave it be.
