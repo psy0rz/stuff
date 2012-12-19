@@ -64,7 +64,7 @@ void loop() {
   fade_step++;
   
   //glide a red and green sparkle in opposite directions
-  static byte glide_delay=40;
+/*  static byte glide_delay=40;
   static word
   glide_led=0;
   static char glide_tail_min=3;
@@ -82,7 +82,21 @@ void loop() {
      if (glide_led>=LED_COUNT)
        glide_led=0;
   }
+*/
 
+/*
+  //give the rest a glowy effect
+  if (random(10)==0)
+  {
+    byte led=random(LED_COUNT);
+    //red?
+    if (want_rgb[led][0]==10)
+      led_fade_from(led, 15,0, 0,25);
+    else if (want_rgb[led][1]==10)
+      led_fade_from(led, 0,15, 0,25);
+    
+  }
+*/
 
   //sparkle a random led in blue sometimes
   static byte sparkles=100;
