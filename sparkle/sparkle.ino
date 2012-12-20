@@ -75,8 +75,8 @@ void loop() {
      led_set(glide_led, 0, 1, 0);
      led_fade_from(glide_led, 0,127,0, random(glide_tail_min, glide_tail_max));    
 
-     led_set(LED_COUNT-glide_led, 1, 0, 0);
-     led_fade_from(LED_COUNT-glide_led, 127,0,0, random(glide_tail_min, glide_tail_max));    
+     led_set(LED_COUNT-glide_led-1, 1, 0, 0);
+     led_fade_from(LED_COUNT-glide_led-1, 127,0,0, random(glide_tail_min, glide_tail_max));    
 
      glide_led++;
      if (glide_led>=LED_COUNT)
