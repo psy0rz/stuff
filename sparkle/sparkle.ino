@@ -64,7 +64,7 @@ void loop() {
   fade_step++;
   
   //glide a red and green sparkle in opposite directions
-/*  static byte glide_delay=40;
+  static byte glide_delay=40;
   static word
   glide_led=0;
   static char glide_tail_min=3;
@@ -72,43 +72,48 @@ void loop() {
   if (fade_step%glide_delay == 0)
   {
 
-     led_set(glide_led, 0, 10, 0);
+     led_set(glide_led, 0, 1, 0);
      led_fade_from(glide_led, 0,127,0, random(glide_tail_min, glide_tail_max));    
 
-     led_set(LED_COUNT-glide_led, 10, 0, 0);
+     led_set(LED_COUNT-glide_led, 1, 0, 0);
      led_fade_from(LED_COUNT-glide_led, 127,0,0, random(glide_tail_min, glide_tail_max));    
 
      glide_led++;
      if (glide_led>=LED_COUNT)
        glide_led=0;
   }
-*/
 
-/*
+
+
   //give the rest a glowy effect
-  if (random(10)==0)
+  if (random(1)==0)
   {
     byte led=random(LED_COUNT);
     //red?
-    if (want_rgb[led][0]==10)
+/*    if (want_rgb[led][0]==10)
       led_fade_from(led, 15,0, 0,25);
     else if (want_rgb[led][1]==10)
       led_fade_from(led, 0,15, 0,25);
-    
-  }
 */
+    if (curr_rgb[led][2]==1)
+      led_fade_from(led, 0,0, 10,25);
+
+  }
+
 
   //sparkle a random led in blue sometimes
   static byte sparkles=100;
   static byte sparkle_max=1;
-  if (random(100)==0)
+  if (random(10)==0)
   {
     byte led=random(LED_COUNT);
-    led_fade_from(led, 0,0, 127, random(sparkle_max)+1);    
+//    led_fade_from(led, 0,0, 127, random(sparkle_max)+1);    
+    led_fade_to(led, 0,0, 1,0);
+    led_fade_from(led, 127,127, 127, -10);    
   }
 
   //////////////// adjust some parameters via serial on the fly
-  if (Serial.available()) {
+/*  if (Serial.available()) {
     switch (Serial.read()) {
       case 'a':   glide_delay++;      break;
       case 'z':   glide_delay--;      break;
@@ -122,7 +127,7 @@ void loop() {
       case 'b':   sparkle_max--;      break;
     }
   }
-
+*/
  
  
   //////////////// below is the fade and send code, just leave it be.
