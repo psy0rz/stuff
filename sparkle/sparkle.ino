@@ -1,6 +1,14 @@
 #include <SPI.h>
 
+#define R 0
+#define G 1
+#define B 2
+
 #define LED_COUNT 160
+//some strips have different color ordering??
+#define COLOR_BYTE0 B
+#define COLOR_BYTE1 R
+#define COLOR_BYTE2 G
 
 //current rgbvalues
 byte curr_rgb[LED_COUNT][3];
@@ -60,57 +68,121 @@ void setup() {
   }  
 }
 
-void loop() {
-  fade_step++;
-  
-  //glide a red and green sparkle in opposite directions
-  static byte glide_delay=40;
-  static word
-  glide_led=0;
-  static char glide_tail_min=3;
-  static char glide_tail_max=5;
-  if (fade_step%glide_delay == 0)
+
+//yellow and red 'flames'
+void do_fire()
+{
+   byte led;
+
+  if (random(5)==0)
   {
+    led=random(LED_COUNT);
+    led_fade_to(led, 127, 20, 0, -2);
 
-     led_set(glide_led, 0, 1, 0);
-     led_fade_from(glide_led, 0,127,0, random(glide_tail_min, glide_tail_max));    
-
-     led_set(LED_COUNT-glide_led-1, 1, 0, 0);
-     led_fade_from(LED_COUNT-glide_led-1, 127,0,0, random(glide_tail_min, glide_tail_max));    
-
-     glide_led++;
-     if (glide_led>=LED_COUNT)
-       glide_led=0;
+    led=random(LED_COUNT);
+    led_fade_to(led, 127, 0, 0, -2);
   }
 
+  //let flames dimm slowly
+  led=random(LED_COUNT);
+  led_fade_to(led, 0,0, 0,2);
+
+}
 
 
-  //give the rest a glowy effect
+
+//give idle leds a glowy effect 
+void do_glowy()
+{
   if (random(1)==0)
   {
     byte led=random(LED_COUNT);
-    //red?
-/*    if (want_rgb[led][0]==10)
-      led_fade_from(led, 15,0, 0,25);
-    else if (want_rgb[led][1]==10)
-      led_fade_from(led, 0,15, 0,25);
-*/
-    if (curr_rgb[led][2]==1)
-      led_fade_from(led, 0,0, 10,25);
-
+    if (fade_speed[led]==0)
+        led_fade_from(led, want_rgb[led][0]+random(5) , want_rgb[led][1]+random(5), want_rgb[led][2]+random(5)   ,25);
   }
+}
 
-
-  //sparkle a random led in blue sometimes
-  static byte sparkles=100;
-  static byte sparkle_max=1;
+//sparkle a random led sometimes
+void do_sparkle()
+{
   if (random(10)==0)
   {
     byte led=random(LED_COUNT);
-//    led_fade_from(led, 0,0, 127, random(sparkle_max)+1);    
-    led_fade_to(led, 0,0, 1,0);
-    led_fade_from(led, 127,127, 127, -10);    
+    led_fade_from(led, 127,127, 127, -10);
   }
+}  
+
+
+
+//a 'kit radar'
+//default its configured to look like it, but usually you will reconfigure it completely different. 
+//it can be usefull for many different effects.
+void do_radar(
+  byte r=127, byte g=0, byte b=0, // color
+  word spd=64, //speed. (skips this many updates), 
+  char fade_min=2, char fade_max=2, //minimum and maximum fade length (randomizes  between this for smoother effect)
+  word start_led=0, word end_led=7, //start and end lednr
+  byte dir=2 //direction: 0 left, 1 right, 2 both
+  )
+{
+  if (fade_step%spd == 0)
+  {
+     word led;
+     word our_step=(fade_step/spd);
+     
+     //left
+     if (dir==0)
+     {
+        led=(
+         our_step
+         %(end_led-start_led+1) //keep it in our range
+        )+start_led;
+     }
+     //right
+     else if (dir==1)
+     {
+        led=end_led-(
+         our_step
+         %(end_led-start_led+1) //keep it in our range
+        );
+     }
+     //both
+     else
+     {
+        word range=(end_led-start_led+1);
+        led=(our_step%(range*2));
+        if (led>=range)
+          led=range-led+range-1;
+        
+//        0 1 2 3 4 5  
+        
+//        0 1 2 2 1 0
+        
+        led=led+start_led;
+     }
+      
+      
+     led_fade_from(led, r,g,b, random(fade_min, fade_max));
+  }
+}
+
+
+unsigned long last_micros=0;
+
+void loop() {
+
+//  do_fire();
+    do_radar( 
+      127,0,0, //color
+      64, //speed. (skips this many updates)
+      10, 10, //minimum and maximum fade speed
+      0,30, //start and end lednr
+      2 //direction
+    );
+
+
+  do_sparkle();
+//  do_glowy();  
 
   //////////////// adjust some parameters via serial on the fly
 /*  if (Serial.available()) {
@@ -136,9 +208,9 @@ void loop() {
   //update all the current and wanted values  
   for (word led = 0; led < LED_COUNT; led++) {    
     //FIRST send the current values, then do the fades
-    SPI.transfer(0x80 | (curr_rgb[led][1]));
-    SPI.transfer(0x80 | (curr_rgb[led][0]));
-    SPI.transfer(0x80 | (curr_rgb[led][2]));
+    SPI.transfer(0x80 | (curr_rgb[led][COLOR_BYTE0]));
+    SPI.transfer(0x80 | (curr_rgb[led][COLOR_BYTE1]));
+    SPI.transfer(0x80 | (curr_rgb[led][COLOR_BYTE2]));
 
     //now do all the fades
     char s=fade_speed[led];
@@ -195,5 +267,11 @@ void loop() {
   // Sending a byte with a MSB of zero enables the output
   // Also resets the led at which new commands start.
   SPI.transfer(0);
+
+  fade_step++;
+
+  //limit the max number of 'frames' per second
+  while (micros()-last_micros < 1000) ;
+  last_micros=micros();
  
 }
