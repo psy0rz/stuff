@@ -92,25 +92,44 @@ void do_fire()
 
 
 //give idle leds a glowy effect 
-void do_glowy()
+void do_glowy(
+  char chance=0, //chance there is a led glwoing? (e.g. lower is more glowing)
+  byte f_r=1, byte f_g=0, byte f_b=0, 
+  byte t_r=5, byte t_g=0, byte t_b=0, //rgb range to glow between
+  char fade_min=20, char fade_max=50 //minimum and maximum fade speed
+)
 {
-  if (random(1)==0)
+  if (random(chance)==0)
   {
     byte led=random(LED_COUNT);
     if (fade_speed[led]==0)
-        led_fade_from(led, want_rgb[led][0]+random(5) , want_rgb[led][1]+random(5), want_rgb[led][2]+random(5)   ,25);
+    {
+        led_fade_to(led, 
+          random(f_r, t_r),
+          random(f_g, t_g),
+          random(f_b, t_b),
+          random(fade_min, fade_max)
+          );
+    }
   }
 }
 
 //sparkle a random led sometimes
-void do_sparkle()
+void do_sparkle(
+  char chance=10, //chance there is a sparc? (e.g. lower is more sparcles)
+  boolean idle=true, //only leds that are not currently fading?
+  byte r=127, byte g=127, byte b=127, // color
+  word spd=-10  //fade speed
+)
 {
-  if (random(10)==0)
+  if (random(chance)==0)
   {
     byte led=random(LED_COUNT);
-    led_fade_from(led, 127,127, 127, -10);
+    if (idle && fade_speed[led]!=0)
+      return;
+    led_fade_from(led, r,g, b, spd);
   }
-}  
+}
 
 
 
@@ -172,34 +191,24 @@ unsigned long last_micros=0;
 void loop() {
 
 //  do_fire();
-    do_radar( 
-      127,0,0, //color
-      64, //speed. (skips this many updates)
-      10, 10, //minimum and maximum fade speed
-      0,30, //start and end lednr
-      2 //direction
+
+do_radar( 
+      0,127,0, //color
+      32, //speed. (skips this many updates)
+      5, 5, //minimum and maximum fade speed
+      0,LED_COUNT-1, //start and end lednr
+      0 //direction
     );
 
 
-  do_sparkle();
-//  do_glowy();  
+  do_sparkle(10);
+  do_glowy(
+    0, //chance there is a led glwoing? (e.g. lower is more glowing)
+    0,0,1, //rgb range
+    0,0,5,
+    20, 50 //min max fade speed
+  );
 
-  //////////////// adjust some parameters via serial on the fly
-/*  if (Serial.available()) {
-    switch (Serial.read()) {
-      case 'a':   glide_delay++;      break;
-      case 'z':   glide_delay--;      break;
-      case 's':   glide_tail_max++;   break;
-      case 'x':   glide_tail_max--;   break;
-      case 'd':   glide_tail_min++;   break;
-      case 'c':   glide_tail_min--;   break;
-      case 'f':   sparkles++;         break;
-      case 'v':   sparkles--;         break;
-      case 'g':   sparkle_max++;      break;
-      case 'b':   sparkle_max--;      break;
-    }
-  }
-*/
  
  
   //////////////// below is the fade and send code, just leave it be.
