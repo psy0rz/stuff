@@ -190,8 +190,8 @@ unsigned long last_micros=0;
 
 void loop() {
 
-//  do_fire();
-
+  do_fire();
+/*
 do_radar( 
       0,127,0, //color
       32, //speed. (skips this many updates)
@@ -209,7 +209,7 @@ do_radar(
     20, 50 //min max fade speed
   );
 
- 
+ */
  
   //////////////// below is the fade and send code, just leave it be.
   //(we could put it in a function but that costs performance)
