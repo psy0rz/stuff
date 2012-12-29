@@ -40,8 +40,8 @@ void setup() {
 
 
   //make sure important outputs are high (relais off), before enabling outputs
-  digitalWrite(button_a_lamp_out, RELAY_ON);
-  digitalWrite(button_b_lamp_out, RELAY_ON);
+  digitalWrite(button_a_lamp_out, RELAY_OFF);
+  digitalWrite(button_b_lamp_out, RELAY_OFF);
   digitalWrite(fire_out, RELAY_OFF);
   digitalWrite(fire_out_inv, RELAY_ON);
   digitalWrite(countdown_out, RELAY_OFF);
@@ -74,8 +74,8 @@ void loop() {
   {
       if ((millis() % 1000)==0)
       {
-        digitalWrite(button_a_lamp_out, RELAY_ON);
-        digitalWrite(button_b_lamp_out, RELAY_ON);
+        digitalWrite(button_a_lamp_out, RELAY_OFF);
+        digitalWrite(button_b_lamp_out, RELAY_OFF);
         delay(100);
         digitalWrite(button_a_lamp_out, RELAY_ON);
         digitalWrite(button_b_lamp_out, RELAY_ON);
