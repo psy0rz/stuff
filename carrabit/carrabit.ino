@@ -1,16 +1,16 @@
 #include <EEPROM.h>
 
 // this constant won't change:
-const int button_a=2;
-const int button_b=3;
-const int countdown_out=8;
-const int fire_out=9;
-const int button_a_lamp_out=10;
-const int button_b_lamp_out=11;
+const int button_a=12;
+const int button_b=11;
+const int countdown_out=10;
+const int fire_out=7;
+const int button_a_lamp_out=8;
+const int button_b_lamp_out=9;
 
 const int start_delay=1000;
 
-const long countdown_time=10000;
+const long countdown_time=15000;
 int fire_delay;
 
 void setup() {
@@ -39,6 +39,7 @@ void check_buttons_pressed()
 }
 
 void loop() {
+
   //wait for buttons to be pressed at the same time
   while (digitalRead(button_a)==1 || digitalRead(button_b)==1)
   {
@@ -49,8 +50,7 @@ void loop() {
         delay(100);
         digitalWrite(button_a_lamp_out, LOW);
         digitalWrite(button_b_lamp_out, LOW);
-      }
-     
+      }     
   }
   Serial.println("push detected");
 
@@ -72,9 +72,11 @@ void loop() {
   {
         digitalWrite(button_a_lamp_out, HIGH);
         digitalWrite(button_b_lamp_out, LOW);
+        digitalWrite(countdown_out, LOW);
         delay(i/20);
         digitalWrite(button_a_lamp_out, LOW);
         digitalWrite(button_b_lamp_out, HIGH);
+        digitalWrite(countdown_out, HIGH);
         delay(i/20);
   }  
   
