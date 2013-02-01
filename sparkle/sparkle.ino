@@ -294,50 +294,83 @@ void run_step()
 
 void loop() {
 
-  //sparkly
-  for(int i=0; i<2000 ;i++)
+  //////////////////////////////////////////////////////fire
+  for(int i=0; i<10000 ;i++)
+  {
+     do_fire();
+     run_step();
+  }
+
+  //////////////////////////////////////////////////////sparkly
+  for(int i=0; i<10000 ;i++)
   {
     do_sparkle(
       1, //chance there is a sparc? (e.g. lower is more sparcles)
       true, //only leds that are not currently fading?
-      127,127,127, // color
-      -1  //fade speed
+      0,127,0, // color
+      1  //fade speed
     );
   
   
     do_glowy(
       0, //chance there is a led glwoing? (e.g. lower is more glowing)
-      0,0,100, //rgb range
-      0,0,127,
+      0,0,50, //rgb range
+      0,0,50,
       -20, -20   //min max fade speed
     );
     
     run_step();
   }
+
+/*  ////////////////////////////////////////////////////////beat flash
+  for(int i=0; i<20000 ;i++)
+  {
+    if ((i%150)==0)
+    {
+       int led=random(0,LED_COUNT-30);
+       
+       for (int l=led; l<led+20; l++)
+       {
+           led_fade_from(l, random(100,127), random(100,127), random(100,127),-3);
+       }
+    }
+    do_glowy(
+     1, //chance there is a led glwoing? (e.g. lower is more glowing)
+     0,0,5, //rgb range
+     0,0,5,
+     -20, -20   //min max fade speed
+    );
   
-  //fast radars
-  for(int i=0; i<2000 ;i++)
+    run_step();
+  }*/
+
+  ////////////////////////////////////////RG radar
+  for(int i=0; i<10000 ;i++)
   {
     do_radar( 
         127,0,0, //color
-        1, //speed. (skips this many updates)
-        -1, -1, //minimum and maximum fade speed
+        4, //speed. (skips this many updates)
+        5, 10, //minimum and maximum fade speed
         0,LED_COUNT-1, //start and end lednr
-        0 //direction
+        0, //direction
+        true
       );
     
     do_radar( 
         0,127,0, //color
-        1, //speed. (skips this many updates)
-        -1, -1, //minimum and maximum fade speed
+        4, //speed. (skips this many updates)
+        5, 10, //minimum and maximum fade speed
         0,LED_COUNT-1, //start and end lednr
-         1 //direction
+         1, //direction,
+         true
       );
       
     run_step();
   }
 
-  //color radars
+  
+
+  ////////////////////////////////////////////color radars
   for(int i=0; i<10000; i++)
   {
   
