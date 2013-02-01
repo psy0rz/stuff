@@ -294,6 +294,27 @@ void run_step()
 
 void loop() {
 
+  //sparkly
+  for(int i=0; i<2000 ;i++)
+  {
+    do_sparkle(
+      1, //chance there is a sparc? (e.g. lower is more sparcles)
+      true, //only leds that are not currently fading?
+      127,127,127, // color
+      -1  //fade speed
+    );
+  
+  
+    do_glowy(
+      0, //chance there is a led glwoing? (e.g. lower is more glowing)
+      0,0,100, //rgb range
+      0,0,127,
+      -20, -20   //min max fade speed
+    );
+    
+    run_step();
+  }
+  
   //fast radars
   for(int i=0; i<2000 ;i++)
   {
@@ -355,22 +376,7 @@ void loop() {
     run_step();
    }
    
-   /*
-  do_sparkle(
-    1, //chance there is a sparc? (e.g. lower is more sparcles)
-    true, //only leds that are not currently fading?
-    127,127,127, // color
-    -1  //fade speed
-  );
 
-
-  do_glowy(
-    0, //chance there is a led glwoing? (e.g. lower is more glowing)
-    0,0,100, //rgb range
-    0,0,127,
-    -20, -20   //min max fade speed
-  );
-*/
 
  
  
