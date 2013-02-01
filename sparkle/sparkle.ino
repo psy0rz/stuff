@@ -15,8 +15,8 @@
 //32/leds/meter version:
 #define LED_COUNT 160
 #define COLOR_BYTE0 G
-#define COLOR_BYTE1 B
-#define COLOR_BYTE2 R
+#define COLOR_BYTE1 R
+#define COLOR_BYTE2 B
 
 //54/leds/meter version:
 /*
@@ -202,11 +202,32 @@ void do_radar(
 }
 
 
+
 unsigned long last_micros=0;
 
 void loop() {
 
-  do_fire();
+//police lights  
+do_radar( 
+    127,0,0, //color
+    1, //speed. (skips this many updates)
+    -2, -2, //minimum and maximum fade speed
+    0,LED_COUNT-1, //start and end lednr
+    0 //direction
+  );
+
+do_radar( 
+    0,0,127, //color
+    1, //speed. (skips this many updates)
+    -2, -2, //minimum and maximum fade speed
+    0,LED_COUNT-1, //start and end lednr
+     1 //direction
+  );
+  
+  
+//  do_fire();
+
+
 /*
 do_radar( 
       0,127,0, //color
