@@ -6,6 +6,7 @@
 // clock = pin 52.  For 32u4 Breakout Board+ and Teensy, data = pin B2,
 // clock = pin B1.  For Leonardo, this can ONLY be done on the ICSP pins.
 
+//dont change these, use COLOR_BYTE below.
 #define R 0
 #define G 1
 #define B 2
@@ -13,9 +14,9 @@
 
 //32/leds/meter version:
 #define LED_COUNT 160
-#define COLOR_BYTE0 B
-#define COLOR_BYTE1 R
-#define COLOR_BYTE2 G
+#define COLOR_BYTE0 G
+#define COLOR_BYTE1 B
+#define COLOR_BYTE2 R
 
 //54/leds/meter version:
 /*
