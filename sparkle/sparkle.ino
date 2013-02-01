@@ -13,18 +13,18 @@
 
 
 //32/leds/meter version:
-#define LED_COUNT 160
+/*#define LED_COUNT 160
 #define COLOR_BYTE0 G
 #define COLOR_BYTE1 R
 #define COLOR_BYTE2 B
-
+*/
 //54/leds/meter version:
-/*
-#define LED_COUNT 270
+
+#define LED_COUNT 260
 #define COLOR_BYTE0 B
 #define COLOR_BYTE1 R
 #define COLOR_BYTE2 G
-*/
+
 
 //current rgbvalues
 byte curr_rgb[LED_COUNT][3];
@@ -34,6 +34,7 @@ byte want_rgb[LED_COUNT][3];
 char fade_speed[LED_COUNT]; //we use the char just as an 'signed byte' ;)
 
 word fade_step=0;
+word program=0;
 
 
 //sets the led to specified value on next update. 
@@ -157,7 +158,8 @@ void do_radar(
   word spd=64, //speed. (skips this many updates), 
   char fade_min=2, char fade_max=2, //minimum and maximum fade length (randomizes  between this for smoother effect)
   word start_led=0, word end_led=7, //start and end lednr
-  byte dir=2 //direction: 0 left, 1 right, 2 both
+  byte dir=2, //direction: 0 left, 1 right, 2 both
+  boolean mix=false //mix existing colors
   )
 {
   if (fade_step%spd == 0)
@@ -196,6 +198,18 @@ void do_radar(
         led=led+start_led;
      }
       
+     if (mix)
+     {
+         if (!r)
+           r=curr_rgb[led][0];
+           
+         if (!g)
+           g=curr_rgb[led][1];
+         
+         if (!b)
+           b=curr_rgb[led][2];
+         
+     }
       
      led_fade_from(led, r,g,b, random(fade_min, fade_max));
   }
@@ -205,48 +219,84 @@ void do_radar(
 
 unsigned long last_micros=0;
 
+
+
 void loop() {
 
-//police lights  
-do_radar( 
-    127,0,0, //color
-    1, //speed. (skips this many updates)
-    -2, -2, //minimum and maximum fade speed
-    0,LED_COUNT-1, //start and end lednr
-    0 //direction
+  if ((fade_step& 0xffffffffff00)==0)
+    program=(program+1)%5;
+
+  if (program==0)
+  {
+    //police lights  
+    do_radar( 
+        127,0,0, //color
+        1, //speed. (skips this many updates)
+        -2, -2, //minimum and maximum fade speed
+        0,LED_COUNT-1, //start and end lednr
+        0 //direction
+      );
+    
+    do_radar( 
+        0,0,127, //color
+        1, //speed. (skips this many updates)
+        -2, -2, //minimum and maximum fade speed
+        0,LED_COUNT-1, //start and end lednr
+         1 //direction
+      );
+  }
+  else if (program==1)
+  {
+    #define R_FADE 14
+    #define R_SPEED 20
+    
+    do_radar( 
+          127,0,0, //color
+          R_SPEED, //speed. (skips this many updates)
+          R_FADE, R_FADE+1, //minimum and maximum fade speed
+          0,LED_COUNT-1, //start and end lednr
+          0, //direction
+          true //mix
+        );
+    
+    do_radar( 
+          0,127,0, //color
+          R_SPEED+1, //speed. (skips this many updates)
+          R_FADE, R_FADE+1, //minimum and maximum fade speed
+          0,LED_COUNT-1, //start and end lednr
+          1, //direction
+          true //mix
+        );
+    
+    do_radar( 
+          0,0,127, //color
+          R_SPEED-1, //speed. (skips this many updates)
+          R_FADE, R_FADE+1, //minimum and maximum fade speed
+          0,LED_COUNT-1, //start and end lednr
+          2, //direction
+          true //mix
+        );
+
+
+   }
+   
+   /*
+  do_sparkle(
+    1, //chance there is a sparc? (e.g. lower is more sparcles)
+    true, //only leds that are not currently fading?
+    127,127,127, // color
+    -1  //fade speed
   );
 
-do_radar( 
-    0,0,127, //color
-    1, //speed. (skips this many updates)
-    -2, -2, //minimum and maximum fade speed
-    0,LED_COUNT-1, //start and end lednr
-     1 //direction
-  );
-  
-  
-//  do_fire();
 
-
-/*
-do_radar( 
-      0,127,0, //color
-      32, //speed. (skips this many updates)
-      5, 5, //minimum and maximum fade speed
-      0,LED_COUNT-1, //start and end lednr
-      0 //direction
-    );
-
-
-  do_sparkle(10);
   do_glowy(
     0, //chance there is a led glwoing? (e.g. lower is more glowing)
-    0,0,1, //rgb range
-    0,0,5,
-    20, 50 //min max fade speed
+    0,0,100, //rgb range
+    0,0,127,
+    -20, -20   //min max fade speed
   );
+*/
 
- */
  
   //////////////// below is the fade and send code, just leave it be.
   //(we could put it in a function but that costs performance)
