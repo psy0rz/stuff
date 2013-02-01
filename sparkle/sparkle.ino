@@ -13,11 +13,11 @@
 
 
 //32/leds/meter version:
-/*#define LED_COUNT 160
+#define LED_COUNT 160
 #define COLOR_BYTE0 G
 #define COLOR_BYTE1 R
 #define COLOR_BYTE2 B
-*/
+
 //54/leds/meter version:
 
 #define LED_COUNT 260
@@ -291,21 +291,79 @@ void run_step()
   last_micros=micros();
 
 }
-
+//////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////
 void loop() {
 
-  //////////////////////////////////////////////////////fire
-  for(int i=0; i<10000 ;i++)
+  ////////////////////////////////////////////multi radar
   {
-     do_fire();
-     run_step();
+    for(int i=0; i<10000; i++)
+    {   
+      const byte bright=127;
+      const byte spd=10;
+      const byte fade=5;
+      
+      do_radar( 
+            bright,0,0, //color
+            spd, //speed. (skips this many updates)
+            fade, fade+5, //minimum and maximum fade speed
+            0,(LED_COUNT/2)-1, //start and end lednr
+            1, //direction
+            true //mix
+          );
+      
+      do_radar( 
+            0,0,bright, //color
+            spd, //speed. (skips this many updates)
+            fade, fade+5, //minimum and maximum fade speed
+            (LED_COUNT/2)-20,LED_COUNT-1, //start and end lednr
+            1, //direction
+            true //mix
+          );
+      
+      run_step();
+     }
   }
+
+
+
+
+  ////////////////////////////////////////////color radars
+  for(int i=0; i<10000; i++)
+  {
+  
+    #define R_FADE 20
+    #define R_SPEED 10
+    #define R_BRIGHT 60
+   
+    
+    do_radar( 
+          R_BRIGHT,0,0, //color
+          R_SPEED, //speed. (skips this many updates)
+          R_FADE, R_FADE+5, //minimum and maximum fade speed
+          0,LED_COUNT-1, //start and end lednr
+          0, //direction
+          true //mix
+        );
+    
+    do_radar( 
+          0,0,R_BRIGHT, //color
+          R_SPEED*2, //speed. (skips this many updates)
+          R_FADE, R_FADE+5, //minimum and maximum fade speed
+          0,LED_COUNT-1, //start and end lednr
+          1, //direction
+          true //mix
+        );
+    
+    run_step();
+   }
 
   //////////////////////////////////////////////////////sparkly
   for(int i=0; i<10000 ;i++)
   {
     do_sparkle(
-      1, //chance there is a sparc? (e.g. lower is more sparcles)
+      3, //chance there is a sparc? (e.g. lower is more sparcles)
       true, //only leds that are not currently fading?
       0,127,0, // color
       1  //fade speed
@@ -314,13 +372,46 @@ void loop() {
   
     do_glowy(
       0, //chance there is a led glwoing? (e.g. lower is more glowing)
-      0,0,50, //rgb range
-      0,0,50,
+      0,0,1, //rgb range
+      0,0,10,
       -20, -20   //min max fade speed
     );
     
     run_step();
   }
+
+
+  ////////////////////////////////////////RG radar
+  for(int i=0; i<10000 ;i++)
+  {
+    do_radar( 
+        127,0,0, //color
+        14, //speed. (skips this many updates)
+        5, 10, //minimum and maximum fade speed
+        0,LED_COUNT-1, //start and end lednr
+        0, //direction
+        true
+      );
+    
+    do_radar( 
+        0,127,0, //color
+        14, //speed. (skips this many updates)
+        5, 10, //minimum and maximum fade speed
+        0,LED_COUNT-1, //start and end lednr
+         1, //direction,
+         true
+      );
+      
+    run_step();
+  }
+
+  //////////////////////////////////////////////////////fire
+  for(int i=0; i<10000 ;i++)
+  {
+     do_fire();
+     run_step();
+  }
+
 
 /*  ////////////////////////////////////////////////////////beat flash
   for(int i=0; i<20000 ;i++)
@@ -344,70 +435,9 @@ void loop() {
     run_step();
   }*/
 
-  ////////////////////////////////////////RG radar
-  for(int i=0; i<10000 ;i++)
-  {
-    do_radar( 
-        127,0,0, //color
-        4, //speed. (skips this many updates)
-        5, 10, //minimum and maximum fade speed
-        0,LED_COUNT-1, //start and end lednr
-        0, //direction
-        true
-      );
-    
-    do_radar( 
-        0,127,0, //color
-        4, //speed. (skips this many updates)
-        5, 10, //minimum and maximum fade speed
-        0,LED_COUNT-1, //start and end lednr
-         1, //direction,
-         true
-      );
-      
-    run_step();
-  }
 
   
 
-  ////////////////////////////////////////////color radars
-  for(int i=0; i<10000; i++)
-  {
-  
-
-  
-    #define R_FADE 14
-    #define R_SPEED 20
-    
-    do_radar( 
-          127,0,0, //color
-          R_SPEED, //speed. (skips this many updates)
-          R_FADE, R_FADE+1, //minimum and maximum fade speed
-          0,LED_COUNT-1, //start and end lednr
-          0, //direction
-          true //mix
-        );
-    
-    do_radar( 
-          0,127,0, //color
-          R_SPEED+1, //speed. (skips this many updates)
-          R_FADE, R_FADE+1, //minimum and maximum fade speed
-          0,LED_COUNT-1, //start and end lednr
-          1, //direction
-          true //mix
-        );
-    
-    do_radar( 
-          0,0,127, //color
-          R_SPEED-1, //speed. (skips this many updates)
-          R_FADE, R_FADE+1, //minimum and maximum fade speed
-          0,LED_COUNT-1, //start and end lednr
-          2, //direction
-          true //mix
-        );
-        
-    run_step();
-   }
    
 
 
