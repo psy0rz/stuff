@@ -218,90 +218,10 @@ void do_radar(
 
 
 unsigned long last_micros=0;
-
-
-
-void loop() {
-
-  if ((fade_step& 0xffffffffff00)==0)
-    program=(program+1)%5;
-
-  if (program==0)
-  {
-    //police lights  
-    do_radar( 
-        127,0,0, //color
-        1, //speed. (skips this many updates)
-        -2, -2, //minimum and maximum fade speed
-        0,LED_COUNT-1, //start and end lednr
-        0 //direction
-      );
-    
-    do_radar( 
-        0,0,127, //color
-        1, //speed. (skips this many updates)
-        -2, -2, //minimum and maximum fade speed
-        0,LED_COUNT-1, //start and end lednr
-         1 //direction
-      );
-  }
-  else if (program==1)
-  {
-    #define R_FADE 14
-    #define R_SPEED 20
-    
-    do_radar( 
-          127,0,0, //color
-          R_SPEED, //speed. (skips this many updates)
-          R_FADE, R_FADE+1, //minimum and maximum fade speed
-          0,LED_COUNT-1, //start and end lednr
-          0, //direction
-          true //mix
-        );
-    
-    do_radar( 
-          0,127,0, //color
-          R_SPEED+1, //speed. (skips this many updates)
-          R_FADE, R_FADE+1, //minimum and maximum fade speed
-          0,LED_COUNT-1, //start and end lednr
-          1, //direction
-          true //mix
-        );
-    
-    do_radar( 
-          0,0,127, //color
-          R_SPEED-1, //speed. (skips this many updates)
-          R_FADE, R_FADE+1, //minimum and maximum fade speed
-          0,LED_COUNT-1, //start and end lednr
-          2, //direction
-          true //mix
-        );
-
-
-   }
-   
-   /*
-  do_sparkle(
-    1, //chance there is a sparc? (e.g. lower is more sparcles)
-    true, //only leds that are not currently fading?
-    127,127,127, // color
-    -1  //fade speed
-  );
-
-
-  do_glowy(
-    0, //chance there is a led glwoing? (e.g. lower is more glowing)
-    0,0,100, //rgb range
-    0,0,127,
-    -20, -20   //min max fade speed
-  );
-*/
-
- 
-  //////////////// below is the fade and send code, just leave it be.
-  //(we could put it in a function but that costs performance)
- 
-  //update all the current and wanted values  
+//execute one fade step and limit fps
+void run_step()
+{
+    //update all the current and wanted values  
   for (word led = 0; led < LED_COUNT; led++) {    
     //FIRST send the current values, then do the fades
     SPI.transfer(0x80 | (curr_rgb[led][COLOR_BYTE0]));
@@ -369,5 +289,90 @@ void loop() {
   //limit the max number of 'frames' per second
   while (micros()-last_micros < 1000) ;
   last_micros=micros();
+
+}
+
+void loop() {
+
+  //fast radars
+  for(int i=0; i<2000 ;i++)
+  {
+    do_radar( 
+        127,0,0, //color
+        1, //speed. (skips this many updates)
+        -1, -1, //minimum and maximum fade speed
+        0,LED_COUNT-1, //start and end lednr
+        0 //direction
+      );
+    
+    do_radar( 
+        0,127,0, //color
+        1, //speed. (skips this many updates)
+        -1, -1, //minimum and maximum fade speed
+        0,LED_COUNT-1, //start and end lednr
+         1 //direction
+      );
+      
+    run_step();
+  }
+
+  //color radars
+  for(int i=0; i<10000; i++)
+  {
+  
+
+  
+    #define R_FADE 14
+    #define R_SPEED 20
+    
+    do_radar( 
+          127,0,0, //color
+          R_SPEED, //speed. (skips this many updates)
+          R_FADE, R_FADE+1, //minimum and maximum fade speed
+          0,LED_COUNT-1, //start and end lednr
+          0, //direction
+          true //mix
+        );
+    
+    do_radar( 
+          0,127,0, //color
+          R_SPEED+1, //speed. (skips this many updates)
+          R_FADE, R_FADE+1, //minimum and maximum fade speed
+          0,LED_COUNT-1, //start and end lednr
+          1, //direction
+          true //mix
+        );
+    
+    do_radar( 
+          0,0,127, //color
+          R_SPEED-1, //speed. (skips this many updates)
+          R_FADE, R_FADE+1, //minimum and maximum fade speed
+          0,LED_COUNT-1, //start and end lednr
+          2, //direction
+          true //mix
+        );
+        
+    run_step();
+   }
+   
+   /*
+  do_sparkle(
+    1, //chance there is a sparc? (e.g. lower is more sparcles)
+    true, //only leds that are not currently fading?
+    127,127,127, // color
+    -1  //fade speed
+  );
+
+
+  do_glowy(
+    0, //chance there is a led glwoing? (e.g. lower is more glowing)
+    0,0,100, //rgb range
+    0,0,127,
+    -20, -20   //min max fade speed
+  );
+*/
+
+ 
+ 
  
 }
