@@ -1,14 +1,29 @@
 #include <SPI.h>
 
+// hardware SPI pins:
+// For "classic" Arduinos (Uno, Duemilanove,
+// etc.), data = pin 11, clock = pin 13.  For Arduino Mega, data = pin 51,
+// clock = pin 52.  For 32u4 Breakout Board+ and Teensy, data = pin B2,
+// clock = pin B1.  For Leonardo, this can ONLY be done on the ICSP pins.
+
 #define R 0
 #define G 1
 #define B 2
 
+
+//32/leds/meter version:
 #define LED_COUNT 160
-//some strips have different color ordering??
 #define COLOR_BYTE0 B
 #define COLOR_BYTE1 R
 #define COLOR_BYTE2 G
+
+//54/leds/meter version:
+/*
+#define LED_COUNT 270
+#define COLOR_BYTE0 B
+#define COLOR_BYTE1 R
+#define COLOR_BYTE2 G
+*/
 
 //current rgbvalues
 byte curr_rgb[LED_COUNT][3];
