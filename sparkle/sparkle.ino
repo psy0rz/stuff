@@ -302,16 +302,18 @@ void loop() {
       byte c=127;
       for(int i=0; i<LED_COUNT-(width*3)-1; i++)
       {
-        led_fade_to(i, 0,0,0, -1);
+        led_set(i, 0,0,0);
         for(int s=i; s<i+width; s++)
         {
-           
-           led_fade_to(s+1, c,0,0, -1);
-           led_fade_to(s+1+width, c,c,0, -1);
-           led_fade_to(s+1+(width*2), 0,c,0, -1);
+           led_set(s+1, c,0,0);
+           led_set(s+1+width, c,c,0);
+           led_set(s+1+(width*2), 0,c,0);
         }
         if (c>0)
-          c--;
+          c=c-5;
+          
+        if (c==0)
+          c=127;
         
         for (int s=0; s< 10; s++)
           run_step();
