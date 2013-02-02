@@ -219,7 +219,7 @@ void do_radar(
 
 unsigned long last_micros=0;
 //execute one fade step and limit fps
-void run_step()
+void run_step(word time=1000)
 {
     //update all the current and wanted values  
   for (word led = 0; led < LED_COUNT; led++) {    
@@ -287,7 +287,7 @@ void run_step()
   fade_step++;
 
   //limit the max number of 'frames' per second
-  while (micros()-last_micros < 1000) ;
+  while (micros()-last_micros < time) ;
   last_micros=micros();
 
 }
@@ -295,7 +295,67 @@ void run_step()
 //////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////
 void loop() {
+  {
+    //regea small
+    {
+      const int width=3;
+      byte c=127;
+      for(int i=0; i<LED_COUNT-(width*3)-1; i++)
+      {
+        led_fade_to(i, 0,0,0, -1);
+        for(int s=i; s<i+width; s++)
+        {
+           
+           led_fade_to(s+1, c,0,0, -1);
+           led_fade_to(s+1+width, c,c,0, -1);
+           led_fade_to(s+1+(width*2), 0,c,0, -1);
+        }
+        if (c>0)
+          c--;
+        
+        for (int s=0; s< 10; s++)
+          run_step();
+      }
 
+    }
+   
+   
+    //regea
+    {
+      const int width=10;
+      for(int i=0; i<LED_COUNT-(width*3)-1; i++)
+      {
+        led_fade_to(i, 0,0,0, -1);
+        for(int s=i; s<i+width; s++)
+        {
+           led_fade_to(s+1, 127,0,0, -1);
+           led_fade_to(s+1+width, 127,127,0, -1);
+           led_fade_to(s+1+(width*2), 0,127,0, -1);
+           run_step();
+        }
+      }
+
+    }
+    
+    //explosion
+    for(int i=20; i<((LED_COUNT/2)-1); i++)
+    {   
+      for(int s=0; s<300; s++)
+      {
+        if (random(i*3)==0)
+        {
+          byte led=random((LED_COUNT/2)-i,(LED_COUNT/2)+i);
+          led_fade_from(led, 147-i,0,0, -20+(i/20));
+          led_fade_from(led, 147-i,20,0, -20+(i/20));
+          if (random(50)==0)
+            led_fade_from(led, 127,00,127, -20);
+          run_step();
+        }
+      }
+    }
+
+  }
+  
   ////////////////////////////////////////////multi radar
   {
     for(int i=0; i<10000; i++)
