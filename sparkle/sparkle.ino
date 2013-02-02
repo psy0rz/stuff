@@ -219,7 +219,7 @@ void do_radar(
 
 unsigned long last_micros=0;
 //execute one fade step and limit fps
-void run_step(word time=1000)
+void run_step(unsigned long time=1000)
 {
     //update all the current and wanted values  
   for (word led = 0; led < LED_COUNT; led++) {    
@@ -296,6 +296,27 @@ void run_step(word time=1000)
 //////////////////////////////////////////////////////////
 void loop() {
   {
+    //regea multi smallones
+    {
+      const int width=1;
+      byte c=127;
+      for(int i=0; i<LED_COUNT-(width*3)-1; i++)
+      {
+        for(int s=(i%15); s<LED_COUNT-20; s=s+15)
+        {
+           led_fade_to(s, 0,0,0,-10);
+           led_fade_to(s+1, c,0, 0,-10);
+           led_fade_to(s+2, c,c,0,-10);
+           led_fade_to(s+3, 0,c,0,-10);
+        }
+        
+        for (int s=0; s<13; s++)
+          run_step();
+      }
+
+    }
+  
+
     //regea small
     {
       const int width=3;
@@ -320,8 +341,7 @@ void loop() {
       }
 
     }
-   
-   
+/*   
     //regea
     {
       const int width=10;
@@ -338,7 +358,8 @@ void loop() {
       }
 
     }
-    
+  */  
+
     //explosion
     for(int i=20; i<((LED_COUNT/2)-1); i++)
     {   
@@ -468,7 +489,7 @@ void loop() {
   }
 
   //////////////////////////////////////////////////////fire
-  for(int i=0; i<10000 ;i++)
+  for(int i=0; i<15000 ;i++)
   {
      do_fire();
      run_step();
