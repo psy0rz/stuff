@@ -1,0 +1,50 @@
+Index: mailserver/dspam/dspam-3.10.2/src/client.c
+===================================================================
+--- mailserver/dspam/dspam-3.10.2/src/client.c	(revision 5931)
++++ mailserver/dspam/dspam-3.10.2/src/client.c	(working copy)
+@@ -228,6 +228,14 @@
+           exitcode = 99;
+         }
+       } else {
++        /* remove dot stuffing, if needed */
++        if((line[0] && line[0]=='.') && (line[1] && line[1]=='.')) {
++          size_t i, len = strlen(line);
++          for(i=0;i<len;i++){
++            line[i]=line[i+1];
++          }
++          line[len-1]=0;
++        }
+         printf("%s\n", line);
+       } 
+       free(line);
+Index: mailserver/dspam/dspam-3.10.2/src/daemon.c
+===================================================================
+--- mailserver/dspam/dspam-3.10.2/src/daemon.c	(revision 5931)
++++ mailserver/dspam/dspam-3.10.2/src/daemon.c	(working copy)
+@@ -735,6 +735,7 @@
+       LOG(LOG_CRIT, ERR_MEM_ALLOC);
+       goto CLOSE;
+     } 
++    /* FIXME: this sends the message back to the client, but doesnt do the appropiate dot stuffing. */
+     process_users(ATX, message);
+   
+     /*
+@@ -928,6 +929,10 @@
+       }
+ 
+       /* remove dot stuffing, if needed */
++      /* FIXME: we SHOULD remove dot stuffing, but because i couldn't find a simple way to re-add dot stuffing in the return message. However this currently leads to truncated messages which is very bad.
++         As a workaround i disabled the dot-stuffing routing below, resulting in dspam seeing and trarining the extra dots in some messages.
++         Edwin Eefting - edwin@datux.nl
++         
+       if((buf[0] && buf[0]=='.') && (buf[1] && buf[1]=='.')) {
+         size_t i, len = strlen(buf);
+         for(i=0;i<len;i++){
+@@ -935,6 +940,7 @@
+         }
+         buf[len-1]=0;
+       }
++      */
+ 
+       if (buffer_cat (message, buf) || buffer_cat(message, "\n"))
+       {
