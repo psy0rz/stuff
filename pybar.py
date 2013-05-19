@@ -176,10 +176,11 @@ def update(params):
         if status_str!="":
             status_str+=" "
 
-        txt=key
-
+        #either use msg or key, to safe space        
         if state['msg']!="":
-            txt+=":"+state['msg']
+            txt=state['msg']
+        else:
+            txt=key
 
         if state['prio']=="ok":
             status_str+="$C7"+txt
