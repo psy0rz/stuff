@@ -13,15 +13,17 @@ import time
 ###### parse arguments
 import argparse
 parser = argparse.ArgumentParser(description='pyBar parser v1.0 (C)Edwin Eefting', formatter_class=argparse.RawDescriptionHelpFormatter, epilog="""
-Example:
+Examples:
 
-    tail -f /var/log/messages | ./pybar_parse --url http://192.168.13.1:8080 ssh,ok,"sshd.*Accepted.*root" ssh,caution,"sshd.*Failed" arp,ok,"sshd.*Accepted.*root" arp,caution,"arpwatch.*new station"
+tail -f /var/log/messages | ./pybar_parse --url http://192.168.13.1:8080 ssh,ok,"sshd.*Accepted.*root" ssh,caution,"sshd.*Failed" arp,ok,"sshd.*Accepted.*root" arp,caution,"arpwatch.*new station"
 
-    This watches the logs for failed logins and new station on your network.
+This watches the logs for failed logins and new stations on your network. You can reset the status back to "ok" by logging in as root. (and checking out the logfiles)
 
-    You can reset the status back to "ok" by logging in as root. (and checking out the logfiles to see if there actually is going something on)
+fping -A -b12 -Q2 -l 8.8.8.8 2>&1 | ./pybar_parse --url http://192.168.13.1:8080 inet,ok,/0% inet,caution,/100%
 
-    """)
+This pings google every second, and generates a caution when there is 100% packet loss. (so you know you're offline within 2 seconds)
+
+""")
 parser.add_argument('--url', nargs='?', default='http://localhost:8080', help='pybar url')
 parser.add_argument('service',  nargs='+', default=[],  help='Service definition: name,prio,regex')
 
@@ -29,13 +31,18 @@ parser.add_argument('service',  nargs='+', default=[],  help='Service definition
 args = parser.parse_args()
 
 
+last_prio={}
 def update_bar(url, service, prio):
+    if (service in last_prio) and (last_prio[service]==prio):
+        return
+
     while 1:
         try:
             bar_url=url+"/"+service+"/"+prio+"/"
             print ("Calling "+bar_url)
             urllib2.urlopen(bar_url)
             print ("Done")
+            last_prio[service]=prio
             break
         except Exception as e:
             print ("Opening "+url+" failed:"+str(e))
