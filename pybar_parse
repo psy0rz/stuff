@@ -12,12 +12,18 @@ import time
 
 ###### parse arguments
 import argparse
-parser = argparse.ArgumentParser(description='pyBar parser v1.0 (C)Edwin Eefting')
-parser.add_argument('--service', required=True, help='service name')
-parser.add_argument('--url', default='http://localhost:8080', help='pybar url')
-parser.add_argument('--ok', default=None, help='set to ok when this regex is detected')
-parser.add_argument('--caution', default=None, help='set to caution when this regex is detected')
-parser.add_argument('--alert', default=None, help='set to alert when this regex is detected')
+parser = argparse.ArgumentParser(description='pyBar parser v1.0 (C)Edwin Eefting', formatter_class=argparse.RawDescriptionHelpFormatter, epilog="""
+Example:
+
+    tail -f /var/log/messages | ./pybar_parse --url http://192.168.13.1:8080 ssh,ok,"sshd.*Accepted.*root" ssh,caution,"sshd.*Failed" arp,ok,"sshd.*Accepted.*root" arp,caution,"arpwatch.*new station"
+
+    This watches the logs for failed logins and new station on your network.
+
+    You can reset the status back to "ok" by logging in as root. (and checking out the logfiles to see if there actually is going something on)
+
+    """)
+parser.add_argument('--url', nargs='?', default='http://localhost:8080', help='pybar url')
+parser.add_argument('service',  nargs='+', default=[],  help='Service definition: name,prio,regex')
 
 #parser.add_argument('--update', action='store_true', help='update existing users')
 args = parser.parse_args()
@@ -37,8 +43,20 @@ def update_bar(url, service, prio):
             print ("Retrying...")
 
 
-update_bar(args.url, args.service, "ok")
 
+
+services={}
+for (service_nr,service) in enumerate(args.service):
+    (name,prio,regex)=service.split(",")
+
+    if name not in services:
+        services[name]={}
+
+    services[name][prio]=regex
+
+
+for (name,service) in services.items():
+    update_bar(args.url, name, "ok")
 
 while 1:
 
@@ -47,7 +65,8 @@ while 1:
     except KeyboardInterrupt:
     
         print("Exitting...")
-        update_bar(args.url, args.service, "del")
+        for (name, service) in services.items():
+            update_bar(args.url, name, "del")
         sys.exit()
 
     if not line:
@@ -55,10 +74,14 @@ while 1:
 
     line=str(line)
 
-    if args.alert and re.search(args.alert,line):
-        update_bar(args.url, args.service, "alert")
-    elif args.caution and re.search(args.caution,line):
-        update_bar(args.url, args.service, "caution")
-    if args.ok and re.search(args.ok,line):
-        update_bar(args.url, args.service, "ok")
+    for (name,service) in services.items():
+
+        if 'alert' in service and re.search(service['alert'], line):
+            update_bar(args.url, name, "alert")
+        elif 'caution' in service and re.search(service['caution'], line):
+            update_bar(args.url, name, "caution")
+        elif 'ok' in service and re.search(service['ok'], line):
+            update_bar(args.url, name, "ok")
+
+
 
