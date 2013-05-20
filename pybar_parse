@@ -1,0 +1,64 @@
+#!/usr/bin/env python2.7
+
+#(C)2013 Edwin Eefting edwin@datux.nl
+
+#parses stdin and updates pybar status when a certain regex matches
+
+import subprocess
+import re
+import sys
+import urllib2
+import time
+
+###### parse arguments
+import argparse
+parser = argparse.ArgumentParser(description='pyBar parser v1.0 (C)Edwin Eefting')
+parser.add_argument('--service', required=True, help='service name')
+parser.add_argument('--url', default='http://localhost:8080', help='pybar url')
+parser.add_argument('--ok', default=None, help='set to ok when this regex is detected')
+parser.add_argument('--caution', default=None, help='set to caution when this regex is detected')
+parser.add_argument('--alert', default=None, help='set to alert when this regex is detected')
+
+#parser.add_argument('--update', action='store_true', help='update existing users')
+args = parser.parse_args()
+
+
+def update_bar(url, service, prio):
+    while 1:
+        try:
+            bar_url=url+"/"+service+"/"+prio+"/"
+            print ("Calling "+bar_url)
+            urllib2.urlopen(bar_url)
+            print ("Done")
+            break
+        except Exception as e:
+            print ("Opening "+url+" failed:"+str(e))
+            time.sleep(2)
+            print ("Retrying...")
+
+
+update_bar(args.url, args.service, "ok")
+
+
+while 1:
+
+    try:
+        line=sys.stdin.readline()
+    except KeyboardInterrupt:
+    
+        print("Exitting...")
+        update_bar(args.url, args.service, "del")
+        sys.exit()
+
+    if not line:
+        break
+
+    line=str(line)
+
+    if args.alert and re.search(args.alert,line):
+        update_bar(args.url, args.service, "alert")
+    elif args.caution and re.search(args.caution,line):
+        update_bar(args.url, args.service, "caution")
+    if args.ok and re.search(args.ok,line):
+        update_bar(args.url, args.service, "ok")
+

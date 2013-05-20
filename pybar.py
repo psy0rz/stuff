@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python2.7
 
 #(C)2013 Edwin Eefting edwin@datux.nl
 # based on http://open.syn3.nl/syn3/trac/default/browser/trunk/projects/movingsign-m500N-7x80rg2/writemarquee
