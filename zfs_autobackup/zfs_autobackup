@@ -1,0 +1,31 @@
+#!/bin/bash
+
+set -e
+
+HOST=$1
+DST=$2
+PROPERTY=$3
+
+if [ "$PROPERTY" == "" ]; then
+    PROPERTY=datux:autobackup
+fi
+
+
+FILESYSTEMS=`ssh $HOST "zfs get -s local -t volume,filesystem -o name,value -H $PROPERTY | grep 'true$' | cut -f1"`
+
+echo "Filesystems to backup:"
+echo "$FILESYSTEMS"
+
+
+for FILESYSTEM in $FILESYSTEMS; do
+    echo 
+    #create parent filesystems?
+    FILESYSTEM_PARENT=`echo $FILESYSTEM|sed 's@/[^/]*@@'`
+    if [ "$FILESYSTEM_PARENT" != "$FILESYSTEM" ]; then
+        zfs create -p $DST/$FILESYSTEM_PARENT
+    fi
+    
+    ./zfs_backup $HOST $FILESYSTEM $DST/$FILESYSTEM
+done
+
+echo "All backups done"

@@ -1,0 +1,38 @@
+#!/bin/bash
+
+set -e
+
+HOST=$1
+SRC=$2
+DST=$3
+
+
+echo "Backupping from $HOST $SRC to $DST"
+
+#ignore errors if there is no local fs yet
+LATEST_LOCAL=`zfs list  -r -t snapshot -H -o name $DST 2>/dev/null|tail -1` 
+LATEST_LOCAL_SHORT=@`echo $LATEST_LOCAL | cut -f2 -d@`
+
+LATEST_REMOTE=`ssh $HOST "zfs list -r -t snapshot -H -o name $SRC|tail -1"`
+LATEST_REMOTE_SHORT=@`echo $LATEST_REMOTE | cut -f2 -d@`
+
+if [ "$LATEST_REMOTE" == "" ]; then
+    echo "No latest remote snapshot found? Something went wrong.."
+    exit 1
+fi
+echo "Latest remote snapshot is: $LATEST_REMOTE"
+
+
+if [ "$LATEST_LOCAL" == "" ]; then
+    echo "No local snapshots, performing initial full send..."
+    ssh  $HOST "zfs send -v -D -R $LATEST_REMOTE | gzip" | gunzip | zfs recv -v "$DST"
+else
+    echo "Latest local snapshot is: $LATEST_LOCAL"
+    if [ "$LATEST_LOCAL_SHORT" == "$LATEST_REMOTE_SHORT" ]; then
+	echo "Snapshots are the same, nothing to do."
+	exit 0
+    fi
+    
+    echo "Resuming send from $LATEST_LOCAL_SHORT"
+    ssh $HOST "zfs send -v -D -R -I $LATEST_LOCAL_SHORT $LATEST_REMOTE | gzip" | gunzip | zfs recv -v "$DST"
+fi
