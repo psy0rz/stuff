@@ -1,0 +1,29 @@
+#!/bin/bash
+
+set -e
+
+HOST=$1
+SRC=$2
+DST=$3
+
+
+echo "Backupping from $HOST:$SRC to $DST"
+
+#ignore errors if there is no local fs yet
+LATEST_LOCAL=`zfs list -r -t snapshot -H -o name $DST 2>/dev/null|grep @autobackup |tail -1`
+LATEST_LOCAL_SNAPSHOT=@`echo $LATEST_LOCAL | cut -f2 -d@`
+
+#create new remote snapshot
+NEW_SNAPSHOT="autobackup-`date +%s`"
+echo "Creating snapshot $NEW_SNAPSHOT"
+ssh $HOST "zfs snapshot -r $SRC@$NEW_SNAPSHOT"
+
+
+if [ "$LATEST_LOCAL" == "" ]; then
+    echo "No local snapshots, performing initial full send..."
+    ssh  $HOST "zfs send -v -D -R -iIGNOREME $SRC@$NEW_SNAPSHOT | gzip" | gunzip | zfs recv -v "$DST"
+else
+    echo "Requesting incremental data from $LATEST_LOCAL_SNAPSHOT to $NEW_SNAPSHOT..."
+    
+    ssh $HOST "zfs send -v -D -R -i $LATEST_LOCAL_SNAPSHOT $SRC@$NEW_SNAPSHOT | gzip" | gunzip | zfs recv -v "$DST"
+fi
