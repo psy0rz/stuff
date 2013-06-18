@@ -12,14 +12,6 @@ class Economy(object):
         return
 
 
-class Unit(object):
-    '''a unit, can be a person or a business. has ownership over items and processes'''
-
-    def __init__(self, name, ttl=None):
-        self.name=name
-        self.created=time.time()
-        self.ttl=ttl
-
 
 
 
@@ -48,6 +40,21 @@ class Item(object):
         return (new_item)
 
 
+class Transaction():
+    '''a transaction of items from a source to a destination unit'''
+
+
+class SellableItem():
+    '''item that can be 'selled' to another unit by exchanging other items (like money or goods)
+
+    this is done by completing all the transactions
+    '''
+
+    #transfer this amount of items per 1 Item
+
+
+    def __init__(self):
+        super(SellableItem, self).__init__(name)
 
 
 
@@ -115,6 +122,8 @@ class ItemCollection(object):
 
  
 
+
+
 class Process(object):
     '''a process: converts items from one form to another, within a unit. 
     '''
@@ -130,10 +139,16 @@ class ProcessGenerator(Process):
         super(ProcessGenerator, self).__init__(name)
 
 
+class Unit(object):
+    '''a unit, can be a person or a business. has ownership over items and processes'''
 
-#class TransferrableItem(Item):
-#
-#     def __init__(self,)
+    def __init__(self, name, ttl=None):
+        self.name=name
+        self.created=time.time()
+        self.ttl=ttl
+        self.items=ItemCollection()
+
+
 
 
 e=Item(name='euro', amount=10)
@@ -154,4 +169,4 @@ print (c.substract('euro',2)[0])
 print ("over:")
 print (c)
 
-
+ 
