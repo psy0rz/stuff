@@ -1,0 +1,10 @@
+#!/bin/bash
+
+ino build -m mega32-8 || exit 1
+
+while !  bootloadHID -r .build/mega32-8/firmware.hex; do
+    sleep 1
+done
+
+
+
