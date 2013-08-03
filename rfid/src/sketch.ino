@@ -10,16 +10,28 @@ void setup() {
 }
 
 
-
 void loop() {
     static unsigned long blink_last_time=0;
-    static byte blink_count=0;
-    if (millis()-blink_last_time> (((sizeof(BLINK_PINS)-blink_count)*20)+20))
+    //static byte blink_count=0;
+    static word blink_bits=1;
+
+    if (millis()-blink_last_time> 100)
     {
 
-      digitalWrite(BLINK_PINS[blink_count], LOW);
-      blink_count=(blink_count+1)%sizeof(BLINK_PINS);
-      digitalWrite(BLINK_PINS[blink_count], HIGH);
+      for (word bit=0; bit<sizeof(BLINK_PINS); bit++)
+      {
+        word drop_bit  = ((blink_bits >> 0) ^ (blink_bits >> 2) ^ (blink_bits >> 3) ^ (blink_bits >> 5) ) & 1;
+        blink_bits =  (blink_bits >> 1) | (drop_bit << sizeof(BLINK_PINS));
+      }
+
+      //convert bits to actual output
+      for (word bit=0; bit<sizeof(BLINK_PINS); bit++)
+      {
+        if (blink_bits & (1<<bit))
+          digitalWrite(BLINK_PINS[bit], HIGH);
+        else
+          digitalWrite(BLINK_PINS[bit], LOW);
+      }
       blink_last_time=millis();
     }
 }
