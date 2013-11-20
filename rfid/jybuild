@@ -1,8 +1,10 @@
 #!/bin/bash
 
-ino build -m mega32-8 || exit 1
+#M=atmega32
+M=mega32-8
+ino build -m $M || exit 1
 
-while !  bootloadHID -r .build/mega32-8/firmware.hex; do
+while !  bootloadHID -r .build/$M/firmware.hex; do
     sleep 1
 done
 
