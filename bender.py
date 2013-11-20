@@ -1,26 +1,27 @@
 #! /usr/bin/env python
 #
-# Example program using irclib.py.
+# Example program using irc.client.py.
 #
 # This program is free without restrictions; do anything you like with
 # it.
 #
 # Joel Rosdahl <joel@rosdahl.net>
 
-import irclib
+import irc.client
 import sys
 import time
 
 
-irclib.DEBUG=1
+irc.DEBUG=1
+irc.client.DEBUG=1
 
-class IRCCat(irclib.SimpleIRCClient):
+class IRCCat(irc.client.SimpleIRCClient):
     def __init__(self, target):
-        irclib.SimpleIRCClient.__init__(self)
+        irc.client.SimpleIRCClient.__init__(self)
         self.target = target
 
     def on_welcome(self, connection, event):
-        if irclib.is_channel(self.target):
+        if irc.client.is_channel(self.target):
             connection.join(self.target)
         else:
             self.send_it()
@@ -37,8 +38,8 @@ class IRCCat(irclib.SimpleIRCClient):
 	
     
 	#handle a bot command and call cmd_<commandname>
-	if (event.arguments()[0][0]=='!'):
-		m = "cmd_" + event.arguments()[0][1:]
+	if (event.arguments[0][0]=='!'):
+		m = "cmd_" + event.arguments[0][1:]
 		if hasattr(self, m):
 			getattr(self, m)(connection, event)
 		else:
@@ -46,11 +47,11 @@ class IRCCat(irclib.SimpleIRCClient):
 
 			
     def cmd_redisgek(self, c, e):
-	   c.privmsg(e.target(), "KLOPT!")
+	   c.privmsg(e.target, "KLOPT!")
 
 	
     def cmd_psyisuber(self, c, e):
-	   c.privmsg(e.target(), "KLOPT OOK!")
+	   c.privmsg(e.target, "KLOPT OOK!")
 
 
     def cmd_wakker(self, c, e):
@@ -66,7 +67,7 @@ class IRCCat(irclib.SimpleIRCClient):
         min=(diff/60)%60
         hour=diff/3600
 
-        c.privmsg(e.target(), "pow time is {:02}:{:02}.{:02}".format( hour, min, sec))
+        c.privmsg(e.target, "pow time is {:02}:{:02}.{:02}".format( hour, min, sec))
 
         
 if len(sys.argv) != 4:
@@ -90,7 +91,7 @@ target = sys.argv[3]
 c = IRCCat(target)
 try:
     c.connect(server, port, nickname)
-except irclib.ServerConnectionError, x:
+except irc.client.ServerConnectionError, x:
     print x
     sys.exit(1)
 c.start()
