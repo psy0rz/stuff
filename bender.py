@@ -56,7 +56,7 @@ class IRCCat(irc.client.SimpleIRCClient):
 
     def cmd_wakker(self, c, e):
         self.powwake=time.time()
-        self.cmd_p0wtime(c,e)
+        self.cmd_pOwtime(c,e)
 
     def cmd_pOwtime(self, c, e):
         now=time.time()
