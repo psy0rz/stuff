@@ -67,7 +67,7 @@ class IRCCat(irc.client.SimpleIRCClient):
         min=(diff/60)%60
         hour=diff/3600
 
-        c.privmsg(e.target, "pow time is {:02}:{:02}.{:02}".format( hour, min, sec))
+        c.privmsg(e.target, "pow time is {0:02}:{1:02}.{2:02}".format( hour, min, sec))
 
         
 if len(sys.argv) != 4:
