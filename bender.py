@@ -58,7 +58,7 @@ class IRCCat(irc.client.SimpleIRCClient):
         self.powwake=time.time()
         self.cmd_p0wtime(c,e)
 
-    def cmd_p0wtime(self, c, e):
+    def cmd_pOwtime(self, c, e):
         now=time.time()
         diff=int(now-self.powwake)
         diff=diff+(10*3600)
