@@ -53,17 +53,6 @@ atmega32.build.variant=standard
 byte BLINK_PINS[]={PB0, 14};
 
 
-
-/*
-Analog 0  Buttons 
-Digital 4 DB4
-Digital 5 DB5
-Digital 6 DB6
-Digital 7 DB7
-Digital 8 RS (Data or Signal Display Selection)
-Digital 9 Enable
-Digital 10  Backlit Control
-*/
 // initialize the library with the numbers of the interface pins
 //LiquidCrystal(rs, enable, d4, d5, d6, d7) 
 //LiquidCrystal lcd(PB4, PB5, PB0, PB1, PB2, PB3);
@@ -73,7 +62,9 @@ LiquidCrystal lcd(PC0, PC1, PC2, PC3, PC4, PC5);
 
 void setup() {                 
 
+  //backlight
   pinMode(PB0, OUTPUT);
+  digitalWrite(PB0, HIGH);
 
   // set up the LCD's number of columns and rows: 
   //lcd.begin(16, 2);
@@ -110,10 +101,7 @@ void loop() {
   lcd.setCursor(0, 1);
   // print the number of seconds since reset:
   lcd.print(millis()/1000);
-    digitalWrite(PB0, LOW);
-    delay(500);
-    digitalWrite(PB0, HIGH);
-    delay(500);
+  delay(100);
 
 }
 
