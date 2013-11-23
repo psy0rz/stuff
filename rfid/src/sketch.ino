@@ -25,14 +25,14 @@ atmega32.build.f_cpu=16000000L
 atmega32.build.core=arduino:arduino
 atmega32.build.variant=standard
 */
-#define PD1 0
-#define PD1 1
+#define PD0 0 //(used for programming)
+#define PD1 1 //(used for programming)
 #define PD2 2
 #define PD3 3
-#define PD4 4  
-#define PD5 5  
-#define PD6 6  
-#define PD7 7  
+#define PD4 4  //S1
+#define PD5 5  //S2
+#define PD6 6  //S3
+#define PD7 7  //S4 (used to enable programming)
 
 #define PB0 8  //LED D8
 #define PB1 9  //LED D7
@@ -47,9 +47,6 @@ atmega32.build.variant=standard
 #define PC3 17
 #define PC4 18
 #define PC5 19
-//20?
-//21?
-//22?
 
  int p= 0;
 
@@ -70,42 +67,34 @@ Digital 10  Backlit Control
 // initialize the library with the numbers of the interface pins
 //LiquidCrystal(rs, enable, d4, d5, d6, d7) 
 //LiquidCrystal lcd(PB4, PB5, PB0, PB1, PB2, PB3);
-//LiquidCrystal lcd(PC4, PC5, PC0, PC1, PC2, PC3);
+LiquidCrystal lcd(PC0, PC1, PC2, PC3, PC4, PC5);
+//LiquidCrystal lcd(PD2, PD3, PD4, PD5, PD6, PD7);
 
 
 void setup() {                 
-  while(1)
-  {
-    pinMode(p, OUTPUT);
-    digitalWrite(p, LOW);
-    delay(500);
-    digitalWrite(p, HIGH);
-    delay(500);
-    p++;
 
-  }
-
+  pinMode(PB0, OUTPUT);
 
   // set up the LCD's number of columns and rows: 
   //lcd.begin(16, 2);
   // Print a message to the LCD.
   //lcd.print("hello, world!");
 
-  for(byte pin_index=0; pin_index<sizeof(BLINK_PINS); pin_index++)
+  /*for(byte pin_index=0; pin_index<sizeof(BLINK_PINS); pin_index++)
   {
     pinMode(BLINK_PINS[pin_index], OUTPUT);
-  }
+  }*/
 
-  pinMode(PC0, OUTPUT);
+/*  pinMode(PC0, OUTPUT);
   pinMode(PC1, OUTPUT);
   pinMode(PC2, OUTPUT);
   pinMode(PC3, OUTPUT);
   pinMode(PC4, OUTPUT);
-  pinMode(PC5, OUTPUT);
+  pinMode(PC5, OUTPUT);*/
 }
 
 void loop() {
-    static unsigned long blink_last_time=0;
+/*    static unsigned long blink_last_time=0;
     static byte blink_count=0;
     if (millis()-blink_last_time> 100)
     {
@@ -115,13 +104,16 @@ void loop() {
       digitalWrite(BLINK_PINS[blink_count], HIGH);
       blink_last_time=millis();
     }
-
+*/
   // set the cursor to column 0, line 1
   // (note: line 1 is the second row, since counting begins with 0):
-//  lcd.setCursor(0, 1);
+  lcd.setCursor(0, 1);
   // print the number of seconds since reset:
-  //lcd.print(millis()/1000);
-//  delay(100);
+  lcd.print(millis()/1000);
+    digitalWrite(PB0, LOW);
+    delay(500);
+    digitalWrite(PB0, HIGH);
+    delay(500);
 
 }
 
