@@ -2,9 +2,60 @@
 
 //byte BLINK_PINS[]={PB0,PB1,PB2,PB3,PB4,PB5,PB6,PB7};
 
-//#define PB0 12
-byte BLINK_PINS[]={17,18,15,16,13,14,11,12};
+
+//byte BLINK_PINS[]={17,1 8,15,16,13,14,11,12};
 //byte BLINK_PINS[]={PB0,PB1,PB2,PB3,PB4,PB5,PB6,PB7};
+
+/*
+Defines for dealextreme dx.com jy_mcu jy_mega16/32 board with atmega32 at 16mhz
+
+add this to boards.txt:
+atmega32.name=Atmega32 board
+atmega32.upload.protocol=stk500
+atmega32.upload.maximum_size=30720
+atmega32.upload.speed=19200
+atmega32.bootloader.low_fuses=0xFF
+atmega32.bootloader.high_fuses=0xDA
+atmega32.bootloader.path=stk500
+atmega32.bootloader.file=ATmegaBOOT_168_atmega32.hex
+atmega32.bootloader.unlock_bits=0x3F
+atmega32.bootloader.lock_bits=0x0F
+atmega32.build.mcu=atmega32
+atmega32.build.f_cpu=16000000L
+atmega32.build.core=arduino:arduino
+atmega32.build.variant=standard
+*/
+#define PD1 0
+#define PD1 1
+#define PD2 2
+#define PD3 3
+#define PD4 4  
+#define PD5 5  
+#define PD6 6  
+#define PD7 7  
+
+#define PB0 8  //LED D8
+#define PB1 9  //LED D7
+#define PB2 10 //LED D6
+#define PB3 11 //LED D5
+#define PB4 12 //LED D4
+#define PB5 13 //LED D3
+
+#define PC0 14
+#define PC1 15
+#define PC2 16
+#define PC3 17
+#define PC4 18
+#define PC5 19
+//20?
+//21?
+//22?
+
+ int p= 0;
+
+byte BLINK_PINS[]={PB0, 14};
+
+
 
 /*
 Analog 0  Buttons 
@@ -16,8 +67,6 @@ Digital 8 RS (Data or Signal Display Selection)
 Digital 9 Enable
 Digital 10  Backlit Control
 */
-
-
 // initialize the library with the numbers of the interface pins
 //LiquidCrystal(rs, enable, d4, d5, d6, d7) 
 //LiquidCrystal lcd(PB4, PB5, PB0, PB1, PB2, PB3);
@@ -25,6 +74,18 @@ Digital 10  Backlit Control
 
 
 void setup() {                 
+  while(1)
+  {
+    pinMode(p, OUTPUT);
+    digitalWrite(p, LOW);
+    delay(500);
+    digitalWrite(p, HIGH);
+    delay(500);
+    p++;
+
+  }
+
+
   // set up the LCD's number of columns and rows: 
   //lcd.begin(16, 2);
   // Print a message to the LCD.
