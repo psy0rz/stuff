@@ -12,10 +12,11 @@
  * rfid_clear XXXXX   Scanned clear all tag (index 1). clears all normal tags 
  * rfid_add XXXX      Added XXX to db
  * rfid_del XXXX      Deleted XXX from db
+ * rfid_ack           Acknowledgement of serial api input commands below
  * 
  * Serial API input:
- * rfid_reset_admin         reset admin tag. next scanned will be it.
- * rfid_reset_clear         reset clear tag. next scanned will be it.
+ * rfid_admin XXXX    reset admin tag to this value
+ * rfid_clear XXXX    reset clear tag to this value
 */
 
 //#include <LiquidCrystal.h>
@@ -118,11 +119,27 @@ void rfid_copy(unsigned char dst[], unsigned char src[])
 }
 
 
+//find key in eeprom and return id.
+//returns -1 if nonexisting
+int rfid_find(unsigned char id[])
+{
+  unsigned char buf[RFID_LEN];
+
+  for (int i=0; i<RFID_IDS; i++)
+  {
+    rfid_eeprom_get(i, buf);
+    if (rfid_match(buf, id))
+    {
+      return(i);
+    }
+  }
+  return(-1);
+}
+  
+
 //state machine that checks what to do with a scanned tag
 typedef enum {
   NORMAL,      //normal base state
-  RESET_ADMIN, //next scanned tag will be admin from now on
-  RESET_CLEAR, //next scanned tag will be cleartag from now on
   ADD //next scanned tag will be added as normal tag
 }  rfid_states;
 
@@ -133,8 +150,6 @@ void rfid_check(unsigned char check_id[])
   static rfid_states state=NORMAL;
   static unsigned long last_time;
 
-  unsigned char id[RFID_LEN]; //temporary id buffer for all kinds of stuff
-   
   //ignore zero ids
   if (rfid_is_zero(check_id))
     return;
@@ -152,46 +167,59 @@ void rfid_check(unsigned char check_id[])
     return;
   rfid_copy(last_id, check_id);
   
-  if (state==NORMAL)
+  //find out which key matches
+  int id_index=rfid_find(check_id);
+  
+  if (state==ADD)
   {
-      //find out which key matches
-      for (int id_index=0; id_index<RFID_IDS; id_index++)
+    if (id_index==-1) //key is still unkown
+    {
+      //find a zero-key spot
+      unsigned char id[RFID_LEN];
+      rfid_zero(id);
+      id_index=rfid_find(id);
+      if (id_index!=-1)
       {
-        rfid_eeprom_get(id_index, id);
-        if (rfid_match(check_id, id)) 
+        //store it
+        rfid_eeprom_put(id_index, check_id);
+        rfid_print_status(F("rfid_add"), check_id);
+      }
+      state=NORMAL;
+    }
+  }
+  else if (state==NORMAL)
+  {
+    if (id_index==-1) //unknown
+    {
+      rfid_print_status(F("rfid_nok"), check_id);
+    }
+    else if (id_index==0) //admin match
+    {
+      //change to add-state
+      rfid_print_status(F("rfid_admin"), check_id);
+      state=ADD; 
+    }
+    else if (id_index==1) //clear all match
+    {
+      rfid_print_status(F("rfid_clear"), check_id);
+      //delete all nonzero normal keys
+      for (int i=2; i<RFID_IDS; i++)
+      {
+        unsigned char id[RFID_LEN];
+        rfid_eeprom_get(i, id);
+        if (!rfid_is_zero(id))
         {
-          if (id_index==0) //admin match
-          {
-            //change to add-state
-            state=ADD; 
-            return;
-          }
-          else if (id_index==1) //clear all match
-          {
-            //delete all nonzero normal keys
-            for (int i=2; i<RFID_IDS; i++)
-            {
-              rfid_eeprom_get(i, id);
-              if (!rfid_is_zero(id))
-              {
-                rfid_print_status(F("rfid_del"), id);
-                rfid_zero(id);
-                rfid_eeprom_put(i, id);
-              }
-            }
-            return;
-          }
-          else //normal match
-          {
-            rfid_print_status(F("rfid_ok"), check_id);
-            return;
-          }
+          rfid_print_status(F("rfid_del"), id);
+          rfid_zero(id);
+          rfid_eeprom_put(i, id);
         }
       }
-      //no matches for this key
-      rfid_print_status(F("rfid_nok"), check_id);
+    }
+    else //normal match
+    {
+      rfid_print_status(F("rfid_ok"), check_id);
+    }
   }
- 
 }
 
 //reset and clear global rfid_buf buffer (for security)
@@ -205,6 +233,53 @@ void rfid_reset_buf()
 //call this periodicly
 void rfid_loop()
 {
+  if (Serial.available())
+  {
+    int r=Serial.readBytesUntil(' ', rfid_buf, RFID_STR_LEN-1);
+      
+    if (r==0)
+      return;
+    
+    rfid_buf[r]=0;
+    
+    if (strcmp(rfid_buf, ("rfid_admin"))==0)
+    {
+      //read hex id
+      int r=Serial.readBytesUntil('\n', rfid_buf, RFID_STR_LEN-1);
+      
+      if (r==0)
+        return;
+      
+      //convert ascii hex to bytes
+      for (int i=0; i< RFID_LEN; i++)
+        sscanf(&rfid_buf[i*2], "%2hhx", &rfid_buf[i]); 
+      
+      //store as admin
+      rfid_eeprom_put(0,(unsigned char*)rfid_buf);
+      rfid_print_status(F("rfid_ack"), (unsigned char*)rfid_buf);
+      
+    }
+    else if (strcmp(rfid_buf, ("rfid_clear"))==0)
+    {
+      //read hex id
+      int r=Serial.readBytesUntil('\n', rfid_buf, RFID_STR_LEN-1);
+
+      //convert ascii hex to bytes
+      for (int i=0; i< RFID_LEN; i++)
+        sscanf(&rfid_buf[i*2], "%2hhx", &rfid_buf[i]); 
+
+      if (r==0)
+        return;
+      
+      //store as clear id
+      rfid_eeprom_put(1,(unsigned char*)rfid_buf);
+      rfid_print_status(F("rfid_ack"), (unsigned char*)rfid_buf);
+    }
+
+
+  }
+
+
   if (rfid.available())
   {
     char c=rfid.read();
