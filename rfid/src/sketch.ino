@@ -1,11 +1,6 @@
 #include <LiquidCrystal.h>
-//#include <SoftwareSerial.h>
-
-//byte BLINK_PINS[]={PB0,PB1,PB2,PB3,PB4,PB5,PB6,PB7};
-
-
-//byte BLINK_PINS[]={17,1 8,15,16,13,14,11,12};
-//byte BLINK_PINS[]={PB0,PB1,PB2,PB3,PB4,PB5,PB6,PB7};
+#include <SoftwareSerial.h>
+#include <EEPROM.h>
 
 /*
 Defines for dealextreme dx.com jy_mcu jy_mega16/32 board with atmega32 at 16mhz
@@ -25,7 +20,7 @@ atmega32.build.mcu=atmega32
 atmega32.build.f_cpu=16000000L
 atmega32.build.core=arduino:arduino
 atmega32.build.variant=standard
-*/
+
 #define PD0 0 //(used for programming RX)
 #define PD1 1 //(used for programming TX)
 #define PD2 2
@@ -48,111 +43,107 @@ atmega32.build.variant=standard
 #define PC3 17
 #define PC4 18
 #define PC5 19
-
- int p= 0;
-
-byte BLINK_PINS[]={PB0, 14};
+*/
 
 
-// initialize the library with the numbers of the interface pins
-//LiquidCrystal(rs, enable, d4, d5, d6, d7) 
-//LiquidCrystal lcd(PB4, PB5, PB0, PB1, PB2, PB3);
-LiquidCrystal lcd(PC0, PC1, PC2, PC3, PC4, PC5);
-//LiquidCrystal lcd(PD2, PD3, PD4, PD5, PD6, PD7);
 
-//SoftwareSerial rfid(PD2,PD3);
+//rfid config
+SoftwareSerial rfid(2,3); 	//rfid reader RX pin
+#define RFID_LEN 5  		//rfid id length in bytes
+#define RFID_IDS 10 		//number of ids to store in eeprom
 
+//init
+#define RFID_BUF_LEN (RFID_LEN*2)+2+1
+char rfid_buf[RFID_BUF_LEN]; //rfid read buffer (we get them in hex, so we need twice the space)
+char rfid_pos=0;
 
 
 void setup() {                 
 
-  //backlight
-  pinMode(PB0, OUTPUT);
-  digitalWrite(PB0, HIGH);
-
   //rfid reader
-  //pinMode(PD2,INPUT);
-  Serial.begin(9600);  
+  rfid.begin(9600);  
+  rfid_pos=0;
+  rfid_buf[(RFID_LEN*2)+1]=0;
   
-  // set up the LCD's number of columns and rows: 
-  //lcd.begin(16, 2);
-  // Print a message to the LCD.
-  //lcd.print("hello, world!");
 
-  /*for(byte pin_index=0; pin_index<sizeof(BLINK_PINS); pin_index++)
-  {
-    pinMode(BLINK_PINS[pin_index], OUTPUT);
-  }*/
-
-/*  pinMode(PC0, OUTPUT);
-  pinMode(PC1, OUTPUT);
-  pinMode(PC2, OUTPUT);
-  pinMode(PC3, OUTPUT);
-  pinMode(PC4, OUTPUT);
-  pinMode(PC5, OUTPUT);*/
+  //serial output
+  Serial.begin(9600);
+  Serial.println(F("rfid locker v1.0 booted"));
 }
 
-void loop() {
-/*    static unsigned long blink_last_time=0;
-    static byte blink_count=0;
-    if (millis()-blink_last_time> 100)
+//print a rfid id thats stored in bytes to serial. (uses global rfid_buf for temporary storage)
+void rfid_print(unsigned char id[])
+{
+    char buf[3];
+    for (int i=0; i< RFID_LEN; i++)
     {
-
-      digitalWrite(BLINK_PINS[blink_count], LOW);
-      blink_count=(blink_count+1)%sizeof(BLINK_PINS);
-      digitalWrite(BLINK_PINS[blink_count], HIGH);
-      blink_last_time=millis();
+      sprintf(buf, "%02hhX", id[i]);
+      buf[2]=0;
+      Serial.print(buf);
     }
-*/
-  // set the cursor to column 0, line 1
-  // (note: line 1 is the second row, since counting begins with 0):
-  lcd.setCursor(0, 1);
-  // print the number of seconds since reset:
-  //lcd.print(millis()/1000);
-  delay(100);
-  
-  while(Serial.available())
+}
+
+//reset and clear buffer (for security)
+void rfid_reset()
+{
+  rfid_pos=0;
+  for (int i=0; i< RFID_BUF_LEN; i++)
+    rfid_buf[i]=0;
+}
+
+//call this periodicly
+void rfid_loop()
+{
+  if (rfid.available())
   {
-    char c=Serial.read();
-    lcd.print(c);
+    char c=rfid.read();
+    if (c==2) //start of data
+    {
+      rfid_reset();
+    }
+    else if (c==3) //end of data
+    {    
+      Serial.print(F("rfidraw "));
+      Serial.println(rfid_buf);
+
+      //convert ascii hex to bytes and generate checksum
+      unsigned char checksum=0;
+      for (int i=0; i< RFID_LEN+1; i++)
+      {
+        sscanf(&rfid_buf[i*2], "%2hhx", &rfid_buf[i]); 
+        checksum=checksum^rfid_buf[i];
+      }
+    
+      if (checksum==0)
+      {
+        //scanned data is ok
+        Serial.print(F("rfid "));
+        rfid_print((unsigned char *)rfid_buf);
+        Serial.println();
+        
+      }
+      
+       rfid_reset();
+    }
+    else //data
+    {
+      if (rfid_pos<RFID_BUF_LEN)
+      {
+        rfid_buf[rfid_pos]=c;
+        rfid_pos++;       
+      }
+    }
   }
-  
-
 }
 
 
-
-
-
-
-
-/** LFSR 
 void loop() {
+  rfid_loop();
 
-
-    static unsigned long blink_last_time=0;
-    //static byte blink_count=0;
-    static word blink_bits=1;
-
-    if (millis()-blink_last_time> 100)
-    {
-
-      for (word bit=0; bit<sizeof(BLINK_PINS); bit++)
-      {
-        word drop_bit  = ((blink_bits >> 0) ^ (blink_bits >> 2) ^ (blink_bits >> 3) ^ (blink_bits >> 5) ) & 1;
-        blink_bits =  (blink_bits >> 1) | (drop_bit << sizeof(BLINK_PINS));
-      }
-
-      //convert bits to actual output
-      for (word bit=0; bit<sizeof(BLINK_PINS); bit++)
-      {
-        if (blink_bits & (1<<bit))
-          digitalWrite(BLINK_PINS[bit], HIGH);
-        else
-          digitalWrite(BLINK_PINS[bit], LOW);
-      }
-      blink_last_time=millis();
-  
-    }
 }
-*/
+
+
+
+
+
+
