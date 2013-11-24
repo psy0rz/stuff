@@ -1,4 +1,5 @@
 #include <LiquidCrystal.h>
+//#include <SoftwareSerial.h>
 
 //byte BLINK_PINS[]={PB0,PB1,PB2,PB3,PB4,PB5,PB6,PB7};
 
@@ -25,8 +26,8 @@ atmega32.build.f_cpu=16000000L
 atmega32.build.core=arduino:arduino
 atmega32.build.variant=standard
 */
-#define PD0 0 //(used for programming)
-#define PD1 1 //(used for programming)
+#define PD0 0 //(used for programming RX)
+#define PD1 1 //(used for programming TX)
 #define PD2 2
 #define PD3 3
 #define PD4 4  //S1
@@ -59,6 +60,9 @@ byte BLINK_PINS[]={PB0, 14};
 LiquidCrystal lcd(PC0, PC1, PC2, PC3, PC4, PC5);
 //LiquidCrystal lcd(PD2, PD3, PD4, PD5, PD6, PD7);
 
+//SoftwareSerial rfid(PD2,PD3);
+
+
 
 void setup() {                 
 
@@ -66,6 +70,10 @@ void setup() {
   pinMode(PB0, OUTPUT);
   digitalWrite(PB0, HIGH);
 
+  //rfid reader
+  //pinMode(PD2,INPUT);
+  Serial.begin(9600);  
+  
   // set up the LCD's number of columns and rows: 
   //lcd.begin(16, 2);
   // Print a message to the LCD.
@@ -100,8 +108,15 @@ void loop() {
   // (note: line 1 is the second row, since counting begins with 0):
   lcd.setCursor(0, 1);
   // print the number of seconds since reset:
-  lcd.print(millis()/1000);
+  //lcd.print(millis()/1000);
   delay(100);
+  
+  while(Serial.available())
+  {
+    char c=Serial.read();
+    lcd.print(c);
+  }
+  
 
 }
 
