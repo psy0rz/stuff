@@ -30,7 +30,7 @@ SoftwareSerial rfid(2,3); 	//rfid reader RX pin
 #define RFID_LEN 5  		//rfid id length in bytes
 #define RFID_IDS 100 		//number of ids to store in eeprom
 #define RFID_LED 13             //feedback led
-#define RFID_LOCK 12            //lock output
+#define RFID_LOCK 9            //lock output
 
 
 //init
@@ -296,6 +296,9 @@ void rfid_loop()
     else
     {
       digitalWrite(RFID_LOCK, HIGH); 
+//       delay(100);
+//       analogWrite(RFID_LOCK, 64);
+//       delay(1000);
       
       //glowing heartbeat (mostly on)
       if (led && millis()-led_time > 1000)
