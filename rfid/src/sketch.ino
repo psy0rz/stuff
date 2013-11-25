@@ -30,7 +30,7 @@ SoftwareSerial rfid(2,3); 	//rfid reader RX pin
 #define RFID_LEN 5  		//rfid id length in bytes
 #define RFID_IDS 100 		//number of ids to store in eeprom
 #define RFID_LED 13             //feedback led
-#define RFID_LOCK 14            //lock output
+#define RFID_LOCK 12            //lock output
 
 
 //init
