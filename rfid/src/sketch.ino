@@ -250,7 +250,7 @@ void rfid_loop()
   
 
   //after a few seconds of no data forget everything and reset to normal state
-  if (millis()-last_time > 3000)
+  if (millis()-last_time > 1000)
   {
     state=NORMAL;
     rfid_zero(last_id);
@@ -259,7 +259,7 @@ void rfid_loop()
   if (state==ADD)
   {
     //show a "waiting for input" pattern
-    if (millis()-led_time > 500)
+    if (millis()-led_time > 100)
     {
       led=!led;
       digitalWrite(RFID_LED, led);
