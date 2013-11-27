@@ -1,0 +1,27 @@
+#!/usr/bin/python
+
+import argparse
+parser=argparse.ArgumentParser(
+    description='rss mailer 1.0',
+    epilog='Checks rss feeds for new articles, and mails if it contains certain keywords')
+parser.add_argument('feed',  help='Feed url')
+parser.add_argument('db',  help='Database-filename to keep status info')
+parser.add_argument('filter',  help='Keyword to monitor for')
+parser.add_argument('email',  help='Email adress to send updates to in ')
+args=parser.parse_args()
+
+
+
+import feedparser
+feed=feedparser.parse( args.feed )
+
+for entry in feed['entries']:
+	entry_txt=entry['date'] +' '+ entry['title'] + ' ' + entry['description'] 
+	if entry_txt.lower().find(args.filter.lower())!=-1:
+		print help(entry['updated_parsed'])
+
+
+
+
+
+

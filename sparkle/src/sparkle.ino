@@ -77,6 +77,7 @@ void setup() {
   SPI.transfer(0); // 'Prime' the SPI bus with initial latch (no wait)
 
   Serial.begin(9600);
+  Serial.print("chuche\n");
 
   //initialize led array 
   for (word led; led<LED_COUNT; led++)

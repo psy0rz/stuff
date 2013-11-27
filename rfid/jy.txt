@@ -1,0 +1,43 @@
+/*
+Defines for dealextreme dx.com jy_mcu jy_mega16/32 board with atmega32 at 16mhz
+
+add this to boards.txt:
+atmega32.name=Atmega32 board
+atmega32.upload.protocol=stk500
+atmega32.upload.maximum_size=30720
+atmega32.upload.speed=19200
+atmega32.bootloader.low_fuses=0xFF
+atmega32.bootloader.high_fuses=0xDA
+atmega32.bootloader.path=stk500
+atmega32.bootloader.file=ATmegaBOOT_168_atmega32.hex
+atmega32.bootloader.unlock_bits=0x3F
+atmega32.bootloader.lock_bits=0x0F
+atmega32.build.mcu=atmega32
+atmega32.build.f_cpu=16000000L
+atmega32.build.core=arduino:arduino
+atmega32.build.variant=standard
+
+#define PD0 0 //(used for programming RX)
+#define PD1 1 //(used for programming TX)
+#define PD2 2
+#define PD3 3
+#define PD4 4  //S1
+#define PD5 5  //S2
+#define PD6 6  //S3
+#define PD7 7  //S4 (used to enable programming)
+
+#define PB0 8  //LED D8
+#define PB1 9  //LED D7
+#define PB2 10 //LED D6
+#define PB3 11 //LED D5
+#define PB4 12 //LED D4
+#define PB5 13 //LED D3
+
+#define PC0 14
+#define PC1 15
+#define PC2 16
+#define PC3 17
+#define PC4 18
+#define PC5 19
+*/
+
