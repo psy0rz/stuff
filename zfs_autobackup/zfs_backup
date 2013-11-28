@@ -5,15 +5,31 @@ set -e
 HOST=$1
 SRC=$2
 DST=$3
-SNAP_FORMAT=$4
+NAME=$4
 
-if ! [ "$SNAP_FORMAT" ]; then
-    SNAP_FORMAT="autobackup"
+
+if ! [ "$NAME" ]; then
+    echo "Usage:"
+    echo "$0 <host> <srcfilesystem> <dstfilesytem> <backupname>"
+    echo
+    echo "If host is 'localhost' then it will operate locally without ssh"
+    echo "Make sure you use an unique backupname for every backup job."
+    echo
+    exit 1
+fi
+
+SNAP_FORMAT=$NAME
+
+#if you litterally specify localhost, it means its local without ssh
+if [ "$HOST" == "localhost" ]; then
+    REMOTE_CMD="eval"
+else
+    REMOTE_CMD="ssh $HOST"
 fi
 
 echo "Backupping from $HOST:$SRC to $DST"
 
-LATEST_REMOTE=`ssh $HOST "zfs list -r -t snapshot -H -o name $SRC 2>/dev/null"|grep @$SNAP_FORMAT- |tail -1`
+LATEST_REMOTE=`$REMOTE_CMD "zfs list -r -t snapshot -H -o name $SRC 2>/dev/null"|grep @$SNAP_FORMAT- |tail -1`
 LATEST_REMOTE_SNAPSHOT=@`echo $LATEST_REMOTE | cut -f2 -d@`
 echo "Latest remote snapshot: $LATEST_REMOTE_SNAPSHOT"
 
@@ -28,26 +44,32 @@ if [ "$LATEST_LOCAL_SNAPSHOT" == "$LATEST_REMOTE_SNAPSHOT" ]; then
     #create new remote snapshot
     NEW_SNAPSHOT="$SNAP_FORMAT-`date +%s`"
     echo "Last backup complete, creating snapshot $NEW_SNAPSHOT"
-    ssh $HOST "zfs snapshot -r $SRC@$NEW_SNAPSHOT"
+    $REMOTE_CMD "zfs snapshot -r $SRC@$NEW_SNAPSHOT"
     LATEST_REMOTE_SNAPSHOT=@$NEW_SNAPSHOT
 fi
 
 
 if [ "$LATEST_LOCAL" == "" ]; then
     echo "No local snapshots, performing initial full send..."
-    LATEST_LOCAL="IGNOREME";
+    LATEST_LOCAL_SNAPSHOT="IGNOREME"; #this apearantly works..is it a zfs send bug or feature? :)
 else
     echo "Requesting incremental data from $LATEST_LOCAL_SNAPSHOT to $LATEST_REMOTE_SNAPSHOT..."
 fi
     
-ssh $HOST "zfs send -v -D -R -i $LATEST_LOCAL_SNAPSHOT $SRC$LATEST_REMOTE_SNAPSHOT | gzip" | gunzip | zfs recv -v "$DST"
+if [ "$HOST" == "localhost" ]; then
+    #dont use compression when its local
+    zfs send -v -D -R -i $LATEST_LOCAL_SNAPSHOT $SRC$LATEST_REMOTE_SNAPSHOT | zfs recv -v "$DST"
+else
+    echo $REMOTE_CMD "zfs send -v -D -R -i $LATEST_LOCAL_SNAPSHOT $SRC$LATEST_REMOTE_SNAPSHOT | gzip"
+    $REMOTE_CMD "zfs send -v -D -R -i $LATEST_LOCAL_SNAPSHOT $SRC$LATEST_REMOTE_SNAPSHOT | gzip" | gunzip | zfs recv -v "$DST"
+fi
 
 
 echo "Checking old remote snapshots that we created..."
-OLD_REMOTES=`ssh $HOST "zfs list -r -t snapshot -H -o name $SRC 2>/dev/null"|grep @$SNAP_FORMAT- |grep -v "$LATEST_LOCAL_SNAPSHOT"| grep -v "$LATEST_REMOTE_SNAPSHOT"` || true
+OLD_REMOTES=`$REMOTE_CMD "zfs list -r -t snapshot -H -o name $SRC 2>/dev/null"|grep @$SNAP_FORMAT- |grep -v "$LATEST_LOCAL_SNAPSHOT"| grep -v "$LATEST_REMOTE_SNAPSHOT"` || true
 for OLD_REMOTE in $OLD_REMOTES; do
     echo "Destroying old remote snapshot $OLD_REMOTE..."
-    ssh $HOST "zfs destroy $OLD_REMOTE"
+    $REMOTE_CMD "zfs destroy $OLD_REMOTE"
 done
 
 KEEP=30
