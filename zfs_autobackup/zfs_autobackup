@@ -36,8 +36,9 @@ echo "$FILESYSTEMS"
 for FILESYSTEM in $FILESYSTEMS; do
     echo 
     #create parent filesystems?
-    FILESYSTEM_PARENT=`echo $FILESYSTEM|sed 's@/[^/]*@@'`
+    FILESYSTEM_PARENT=`echo $FILESYSTEM|sed 's@/[^/]*$@@'`
     if [ "$FILESYSTEM_PARENT" != "$FILESYSTEM" ]; then
+	#echo "Creating parent $DST/$FILESYSTEM_PARENT"
         zfs create -p $DST/$FILESYSTEM_PARENT
     fi
     

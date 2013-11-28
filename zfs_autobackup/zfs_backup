@@ -55,12 +55,11 @@ if [ "$LATEST_LOCAL" == "" ]; then
 else
     echo "Requesting incremental data from $LATEST_LOCAL_SNAPSHOT to $LATEST_REMOTE_SNAPSHOT..."
 fi
-    
+
 if [ "$HOST" == "localhost" ]; then
     #dont use compression when its local
     zfs send -v -D -R -i $LATEST_LOCAL_SNAPSHOT $SRC$LATEST_REMOTE_SNAPSHOT | zfs recv -v "$DST"
 else
-    echo $REMOTE_CMD "zfs send -v -D -R -i $LATEST_LOCAL_SNAPSHOT $SRC$LATEST_REMOTE_SNAPSHOT | gzip"
     $REMOTE_CMD "zfs send -v -D -R -i $LATEST_LOCAL_SNAPSHOT $SRC$LATEST_REMOTE_SNAPSHOT | gzip" | gunzip | zfs recv -v "$DST"
 fi
 
