@@ -73,7 +73,7 @@ done
 
 KEEP=30
 echo "Keeping $KEEP local snapshots, deleting older ones:"
-OLD_LOCALS=`zfs list -r -t snapshot -H -o name $DST|grep @$SNAP_FORMAT- |grep -v "$LATEST_LOCAL_SNAPSHOT"| grep -v "$LATEST_REMOTE_SNAPSHOT"`
+OLD_LOCALS=`zfs list -r -t snapshot -H -o name $DST|grep @$SNAP_FORMAT- |grep -v "$LATEST_LOCAL_SNAPSHOT"| grep -v "$LATEST_REMOTE_SNAPSHOT"` || true
 COUNT=`echo $OLD_LOCALS|wc -w`
 for OLD_LOCAL in $OLD_LOCALS; do
     if [ $COUNT -gt $KEEP ]; then
