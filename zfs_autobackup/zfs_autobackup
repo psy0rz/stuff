@@ -21,13 +21,16 @@ PROPERTY=autobackup:$NAME
 #if you litterally specify localhost, it means its local without ssh
 if [ "$HOST" == "localhost" ]; then
     REMOTE_CMD="eval"
+    #filter the destination if the backup is local
+    FILESYSTEMS=`$REMOTE_CMD "zfs get -t volume,filesystem -o name,value -H $PROPERTY | grep -v "^$DST/" | grep 'true$' | cut -f1"`
 else
     REMOTE_CMD="ssh $HOST"
+    FILESYSTEMS=`$REMOTE_CMD "zfs get -t volume,filesystem -o name,value -H $PROPERTY | grep 'true$' | cut -f1"`
 fi
         
 
 
-FILESYSTEMS=`$REMOTE_CMD "zfs get -t volume,filesystem -o name,value -H $PROPERTY | grep 'true$' | cut -f1"`
+
 
 echo "Filesystems to backup:"
 echo "$FILESYSTEMS"
