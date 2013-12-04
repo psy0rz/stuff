@@ -27,7 +27,7 @@ fi
         
 
 
-FILESYSTEMS=`$REMOTE_CMD "zfs get -s local -t volume,filesystem -o name,value -H $PROPERTY | grep 'true$' | cut -f1"`
+FILESYSTEMS=`$REMOTE_CMD "zfs get -t volume,filesystem -o name,value -H $PROPERTY | grep 'true$' | cut -f1"`
 
 echo "Filesystems to backup:"
 echo "$FILESYSTEMS"
@@ -35,13 +35,14 @@ echo "$FILESYSTEMS"
 
 for FILESYSTEM in $FILESYSTEMS; do
     echo 
-    #create parent filesystems?
+    #create destination and parent of the filesystem?
     FILESYSTEM_PARENT=`echo $FILESYSTEM|sed 's@/[^/]*$@@'`
+    zfs create -p $DST
     if [ "$FILESYSTEM_PARENT" != "$FILESYSTEM" ]; then
-	#echo "Creating parent $DST/$FILESYSTEM_PARENT"
+	echo "Creating parent $DST/$FILESYSTEM_PARENT"
         zfs create -p $DST/$FILESYSTEM_PARENT
     fi
-    
+
     ./zfs_backup $HOST $FILESYSTEM $DST/$FILESYSTEM $NAME
 done
 
