@@ -4,14 +4,30 @@ set -e
 
 HOST=$1
 DST=$2
-PROPERTY=$3
+NAME=$3
 
-if [ "$PROPERTY" == "" ]; then
-    PROPERTY=datux:autobackup
+if [ "$NAME" == "" ]; then
+    echo "Usage:"
+    echo "$0 <host> <localfilesystem> <backupname>"
+    echo
+    echo "Use 'localhost' to operate locally"
+    echo "Set the property 'autobackup:backupname' to true on the filesystems you want to backup"
+    echo
+    exit 1
 fi
 
+PROPERTY=autobackup:$NAME
 
-FILESYSTEMS=`ssh $HOST "zfs get -s local -t volume,filesystem -o name,value -H $PROPERTY | grep 'true$' | cut -f1"`
+#if you litterally specify localhost, it means its local without ssh
+if [ "$HOST" == "localhost" ]; then
+    REMOTE_CMD="eval"
+else
+    REMOTE_CMD="ssh $HOST"
+fi
+        
+
+
+FILESYSTEMS=`$REMOTE_CMD "zfs get -s local -t volume,filesystem -o name,value -H $PROPERTY | grep 'true$' | cut -f1"`
 
 echo "Filesystems to backup:"
 echo "$FILESYSTEMS"
@@ -20,12 +36,13 @@ echo "$FILESYSTEMS"
 for FILESYSTEM in $FILESYSTEMS; do
     echo 
     #create parent filesystems?
-    FILESYSTEM_PARENT=`echo $FILESYSTEM|sed 's@/[^/]*@@'`
+    FILESYSTEM_PARENT=`echo $FILESYSTEM|sed 's@/[^/]*$@@'`
     if [ "$FILESYSTEM_PARENT" != "$FILESYSTEM" ]; then
+	#echo "Creating parent $DST/$FILESYSTEM_PARENT"
         zfs create -p $DST/$FILESYSTEM_PARENT
     fi
     
-    ./zfs_backup $HOST $FILESYSTEM $DST/$FILESYSTEM
+    ./zfs_backup $HOST $FILESYSTEM $DST/$FILESYSTEM $NAME
 done
 
 echo "All backups done"

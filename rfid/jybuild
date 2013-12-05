@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#M=atmega32
-M=mega32-8
+M=atmega32
+#M=mega32-8
 ino build -m $M || exit 1
 
 while !  bootloadHID -r .build/$M/firmware.hex; do
