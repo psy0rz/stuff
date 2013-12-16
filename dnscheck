@@ -1,0 +1,20 @@
+#!/bin/bash
+
+NOW=`date +%s`
+ERR=0
+for NS in a.ns.linuxsysteem.nl b.ns.linuxsysteem.nl ns1.spothost.nl ns2.spothost.nl; do
+	if ! LAST=`dig +short linuxsysteem.nl soa @$NS | cut -d' ' -f3`; then
+		echo "$NS error"
+		ERR=1
+	else
+		(( LAG = $NOW - $LAST ))
+		echo "$NS lags $LAG seconds"
+		if [ $LAG -gt 300 ]; then
+			echo "$NS is lagging too much!"
+			ERR=1
+		fi
+	fi
+done
+
+exit $ERR
+
