@@ -29,8 +29,9 @@
 SoftwareSerial rfid(2,3); 	//rfid reader RX pin
 #define RFID_LEN 5  		//rfid id length in bytes
 #define RFID_IDS 100 		//number of ids to store in eeprom
-#define RFID_LED 13             //feedback led
+#define RFID_LED 11             //feedback led
 #define RFID_LOCK 9            //lock output
+#define RFID_MANUAL 10          //manual open by switch pin
 
 
 //init
@@ -46,9 +47,12 @@ void setup() {
   rfid_pos=0;
   rfid_buf[(RFID_LEN*2)+1]=0;
  
-  //feedback led
+  
   pinMode(RFID_LED, OUTPUT);     
-  pinMode(RFID_LOCK, OUTPUT);     
+  pinMode(RFID_LOCK, OUTPUT);
+  pinMode(RFID_MANUAL, INPUT_PULLUP);
+  
+  
   
   //serial output
   Serial.begin(9600);
@@ -247,6 +251,14 @@ void rfid_loop()
 {
   static bool led=true;
   static unsigned long led_time=0;
+  
+  
+  //manual opening of door
+  if (!digitalRead(RFID_MANUAL))
+  
+  {
+    rfid_unlocked=millis();
+  }
   
 
   //after a few seconds of no data forget everything and reset to normal state
