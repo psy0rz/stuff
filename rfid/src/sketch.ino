@@ -22,16 +22,50 @@
  * Serial API input:
  * rfid_admin XXXX    reset admin tag to this value
  * rfid_clear XXXX    reset clear tag to this value
-*/
 
-//#include <LiquidCrystal.h>
+
+ * NFRC522 13mhz card stuff:
+ *
+ * Pin layout should be as follows:
+ * Signal     Pin              Pin               Pin
+ *            Arduino Uno      Arduino Mega      MFRC522 board
+ * ------------------------------------------------------------
+ * Reset      9                5                 RST
+ * SPI SS     10               53                SDA
+ * SPI MOSI   11               52                MOSI
+ * SPI MISO   12               51                MISO
+ * SPI SCK    13               50                SCK
+ *
+ * The reader can be found on eBay for around 5 dollars. Search for "mf-rc522" on ebay.com. 
+ */
+
+//choose one, or both
+#define ENABLE_MFRC522
+#define ENABLE_125KHZ
+
+//mfc stuff
+#ifdef ENABLE_MFRC522
+#include <MFRC522.h>
+#include <SPI.h>
+
+//mfrc522 config
+#define SS_PIN 10
+#define RST_PIN 9
+MFRC522 mfrc522(SS_PIN, RST_PIN); // Create MFRC522 instance.
+#endif
+
+//125 khz stuff
+#ifdef ENABLE_125KHZ
 #include <SoftwareSerial.h>
+//rfid 125khz config
+SoftwareSerial rfid(2,3);   //rfid reader RX pin
+#endif
+
+#define RFID_LEN 5      //rfid id length in bytes
+#define RFID_IDS 100    //number of ids to store in eeprom
+
 #include <EEPROM.h>
 
-//rfid config
-SoftwareSerial rfid(2,3); 	//rfid reader RX pin
-#define RFID_LEN 5  		//rfid id length in bytes
-#define RFID_IDS 100 		//number of ids to store in eeprom
 
 //#define RFID_LED 11             //feedback led
 //#define RFID_LOCK 9            //lock output
@@ -40,33 +74,38 @@ SoftwareSerial rfid(2,3); 	//rfid reader RX pin
 #define RFID_LED 4             //feedback led
 #define RFID_LOCK 5            //lock output
 #define RFID_MANUAL 6          //manual open by switch pin
-
+#define RFID_MANUAL_LEVEL 1    //level to manual open door (1 or 0)
 
 //init
-#define RFID_STR_LEN 14 //(RFID_LEN*2)+2+1
+#define RFID_STR_LEN 16 //(RFID_LEN*2)+2+1
 char rfid_buf[RFID_STR_LEN]; //rfid read buffer (we get them in ascii hex strings, so we need twice the space)
 char rfid_pos=0;
 
 
 void setup() {                 
+  Serial.begin(9600);
+  Serial.println(F("rfid_msg initializing"));
 
-  //rfid reader
+#ifdef ENABLE_125KHZ
+  //125khz rfid reader
   rfid.begin(9600);  
   rfid_pos=0;
   rfid_buf[(RFID_LEN*2)+1]=0;
- 
-  
+#endif
+
+#ifdef ENABLE_MFRC522
+  SPI.begin();  
+  mfrc522.PCD_Init(); 
+#endif 
+
   pinMode(RFID_LED, OUTPUT);     
   pinMode(RFID_LOCK, OUTPUT);
   pinMode(RFID_MANUAL, INPUT_PULLUP);
   
   
   
-  //serial output
-  Serial.begin(9600);
-  Serial.println(F("rfid locker v1.0 booted"));
-
- 
+  Serial.println(F("rfid_msg rfid locker v1.0 booted"));
+  
   
 }
 
@@ -220,7 +259,7 @@ void rfid_check(unsigned char check_id[])
       }
       else
       {
-        Serial.println("rfid_msg out of key storage");
+        Serial.println(F("rfid_msg out of key storage"));
       }
       state=NORMAL;
     }
@@ -261,6 +300,8 @@ void rfid_reset_buf(char *rfid_buf)
   for (int i=0; i< RFID_STR_LEN; i++)
     rfid_buf[i]=0;
 }
+
+#ifdef ENABLE_125KHZ
 
 //call this periodically to read RDM630 modules
 bool rfid_read_RDM630(char *rfid_buf)
@@ -327,7 +368,7 @@ bool rfid_read_ATS125(char *rfid_buf)
       char rfid_bytes[RFID_STR_LEN]; 
       rfid_reset_buf(rfid_bytes);
       sscanf(rfid_buf, "%lu", rfid_bytes); 
-      memcpy(rfid_buf, rfid_bytes, RFID_LEN);
+      rfid_copy((unsigned char*)rfid_buf, (unsigned char*)rfid_bytes);
 
 
       return(true);
@@ -348,15 +389,48 @@ bool rfid_read_ATS125(char *rfid_buf)
   return(false);
 }
 
+#endif
 
+
+#ifdef ENABLE_MFRC522
+
+bool rfid_read_mfrc522(char *rfid_buf)
+{
+  // Look for new cards
+  if ( ! mfrc522.PICC_IsNewCardPresent()) {
+    return(false);
+  }
+
+  // Select one of the cards
+  if ( ! mfrc522.PICC_ReadCardSerial()) {
+    return(false);
+  }
+
+  rfid_reset_buf(rfid_buf);
+  memcpy(rfid_buf, mfrc522.uid.uidByte, 4); //for now we only support 4 bytes. this is default 
+  return(true);
+}
+#endif 
 
 void loop()
 {
   static bool led=true;
   static unsigned long led_time=0;
   
-//  if (rfid_125k_read(rfid_buf))
-  if (rfid_read_ATS125(rfid_buf))
+// you can use one or both :)
+  if (
+#ifdef ENABLE_125KHZ
+    rfid_read_ATS125(rfid_buf)
+#else
+    0
+#endif 
+    || 
+#ifdef ENABLE_MFRC522
+    rfid_read_mfrc522(rfid_buf)
+#else
+    0
+#endif
+    )
   {
     //scanned data is ok, now check what to do with it
     digitalWrite(RFID_LED, !led);
@@ -368,7 +442,7 @@ void loop()
   }
   
   //manual opening of door
-  if (!digitalRead(RFID_MANUAL))
+  if (digitalRead(RFID_MANUAL)==RFID_MANUAL_LEVEL)
   {
     rfid_unlocked=millis();
   }
@@ -397,7 +471,7 @@ void loop()
     if (rfid_unlocked)
     {
       digitalWrite(RFID_LOCK, LOW); 
-      if (millis()-rfid_unlocked > 10000)
+      if (millis()-rfid_unlocked > 4000)
       {
           rfid_unlocked=0;
       }
