@@ -1,0 +1,4 @@
+#!/bin/bash
+#ino build -m atmega328 && ino upload -m atmega328 &&  ino serial -- --imap lfcrlf
+ino build -m atmega328 && ino upload -m atmega328 &&  ino serial 
+

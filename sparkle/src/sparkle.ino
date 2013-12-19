@@ -13,14 +13,14 @@
 
 
 //32/leds/meter version:
-#define LED_COUNT 160
-#define COLOR_BYTE0 G
-#define COLOR_BYTE1 R
-#define COLOR_BYTE2 B
+// #define LED_COUNT 160
+// #define COLOR_BYTE0 G
+// #define COLOR_BYTE1 R
+// #define COLOR_BYTE2 B
 
 //54/leds/meter version:
-
-#define LED_COUNT 260
+//#define LED_COUNT 160
+#define LED_COUNT 160
 #define COLOR_BYTE0 B
 #define COLOR_BYTE1 R
 #define COLOR_BYTE2 G
@@ -69,6 +69,9 @@ void led_fade_from(word led, byte r, byte g, byte b, char new_speed)
 }
 
 void setup() {
+  Serial.begin(9600);
+  Serial.print("started\n");
+
   // Start SPI communication for the LEDstrip
   SPI.begin();
   SPI.setBitOrder(MSBFIRST);
@@ -76,11 +79,15 @@ void setup() {
   SPI.setClockDivider(SPI_CLOCK_DIV2);
   SPI.transfer(0); // 'Prime' the SPI bus with initial latch (no wait)
 
-  Serial.begin(9600);
-  Serial.print("chuche\n");
+  //clear all leds, even if there are more than we use:
+  for (word led=0; led<20000; led++)
+  {
+    SPI.transfer(0x80);
+  }
+  SPI.transfer(0);
 
   //initialize led array 
-  for (word led; led<LED_COUNT; led++)
+  for (word led=0; led<LED_COUNT; led++)
   {
     led_set(led, 0,0,0);
   }  

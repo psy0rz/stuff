@@ -17,6 +17,8 @@ irc.client.DEBUG=1
 
 class IRCCat(irc.client.SimpleIRCClient):
     def __init__(self, target):
+        self.powwake=time.time()
+        self.last_cmd_time=time.time()-1000
         irc.client.SimpleIRCClient.__init__(self)
         self.target = target
 
@@ -39,6 +41,12 @@ class IRCCat(irc.client.SimpleIRCClient):
     
 	#handle a bot command and call cmd_<commandname>
 	if (event.arguments[0][0]=='!'):
+                if (time.time()-self.last_cmd_time < 5):
+                        print "flood protection"
+                        return
+
+                self.last_cmd_time=time.time()
+
 		m = "cmd_" + event.arguments[0][1:]
 		if hasattr(self, m):
 			getattr(self, m)(connection, event)
@@ -47,16 +55,14 @@ class IRCCat(irc.client.SimpleIRCClient):
 
 			
     def cmd_redisgek(self, c, e):
-	   c.privmsg(e.target, "KLOPT!")
-
-	
-    def cmd_psyisuber(self, c, e):
-	   c.privmsg(e.target, "KLOPT OOK!")
-
+        c.privmsg(e.target, "KLOPT!")
 
     def cmd_wakker(self, c, e):
-        self.powwake=time.time()
-        self.cmd_pOwtime(c,e)
+        if (time.time()-self.powwake< 3600):
+                c.privmsg(e.target, "zak maar mooi in de stront..je ben net wakker")
+        else:
+                self.powwake=time.time()
+                self.cmd_pOwtime(c,e)
 
     def cmd_pOwtime(self, c, e):
         now=time.time()
