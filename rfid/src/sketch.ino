@@ -72,7 +72,7 @@ SoftwareSerial rfid(2,3);   //rfid reader RX pin
 //#define RFID_MANUAL 10          //manual open by switch pin
 
 #define RFID_LED 4             //feedback led
-#define RFID_LOCK 5            //lock output
+#define RFID_LOCK 7            //lock output
 #define RFID_MANUAL 6          //manual open by switch pin
 #define RFID_MANUAL_LEVEL 1    //level to manual open door (1 or 0)
 
