@@ -9,8 +9,8 @@ const int button_a=12;
 const int button_b=11;
 
 //feedback lights for the buttons
-const int button_a_lamp_out=8;
-const int button_b_lamp_out=9;
+const int button_a_lamp_out=6;
+const int button_b_lamp_out=7;
 
 //count down signal (currently an alarm bell thats turned on and off during count down)
 const int countdown_out=10;
@@ -19,8 +19,8 @@ const int countdown_out=10;
 //the inverted fire-relais, is in series with the normal one for extra security: 
 //we had some issues with the Arduino uno board R2 (not R3).
 //sometimes the board didnt do a good power on reset and all the outputs where high!
-const int fire_out=7;
-const int fire_out_inv=6; 
+const int fire_out=8;
+const int fire_out_inv=9; 
 
 //how long should both buttons be pressed before starting?
 const int start_delay=1000;
