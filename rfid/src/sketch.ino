@@ -40,7 +40,7 @@
  */
 
 //choose one, or both
-#define ENABLE_MFRC522
+//#define ENABLE_MFRC522
 #define ENABLE_125KHZ
 
 //mfc stuff
@@ -72,9 +72,13 @@ SoftwareSerial rfid(2,3);   //rfid reader RX pin
 //#define RFID_MANUAL 10          //manual open by switch pin
 
 #define RFID_LED 4             //feedback led
-#define RFID_LOCK 7            //lock output
+#define RFID_LOCK_PIN 3            //lock output
+#define RFID_LOCK_DUTY 255      //duty cycle for lock pwm (this should be enough to just hold the lock)
+#define RFID_LOCK_HOLD_TIME  10000  //milliseconds to just power the lock with the DUTY cycle
+#define RFID_LOCK_FULL_TIME  80    //milliseconds to fully power to lock, to move it to the lock position. 
+
 #define RFID_MANUAL 6          //manual open by switch pin
-#define RFID_MANUAL_LEVEL 1    //level to manual open door (1 or 0)
+#define RFID_MANUAL_LEVEL 0    //level to manual open door (1 or 0)
 
 //init
 #define RFID_STR_LEN 16 //(RFID_LEN*2)+2+1
@@ -99,7 +103,7 @@ void setup() {
 #endif 
 
   pinMode(RFID_LED, OUTPUT);     
-  pinMode(RFID_LOCK, OUTPUT);
+  pinMode(RFID_LOCK_PIN, OUTPUT);
   pinMode(RFID_MANUAL, INPUT_PULLUP);
   
   
@@ -223,7 +227,7 @@ typedef enum {
 
 static rfid_states state=NORMAL;
 unsigned long rfid_unlocked=0; //time the door was unlocked. 0 means door is locked
-unsigned long last_time;
+unsigned long last_scan_time;
 unsigned char last_id[RFID_LEN];
 
 void rfid_check(unsigned char check_id[])
@@ -412,11 +416,14 @@ bool rfid_read_mfrc522(char *rfid_buf)
 }
 #endif 
 
+
+
+
 void loop()
 {
   static bool led=true;
   static unsigned long led_time=0;
-  
+
 // you can use one or both :)
   if (
 #ifdef ENABLE_125KHZ
@@ -438,7 +445,7 @@ void loop()
     digitalWrite(RFID_LED, led);
 
     rfid_check((unsigned char *)rfid_buf);
-    last_time=millis();
+    last_scan_time=millis();
   }
   
   //manual opening of door
@@ -449,7 +456,7 @@ void loop()
   
 
   //after a few seconds of no data forget everything and reset to normal state
-  if (millis()-last_time > 1000)
+  if (millis()-last_scan_time > 1000)
   {
     state=NORMAL;
     rfid_zero(last_id);
@@ -470,10 +477,11 @@ void loop()
     //unlocked
     if (rfid_unlocked)
     {
-      digitalWrite(RFID_LOCK, LOW); 
+      analogWrite(RFID_LOCK_PIN, 0); 
       if (millis()-rfid_unlocked > 4000)
       {
           rfid_unlocked=0;
+          last_scan_time=millis(); //abuse this variable so that we dont have to wait for LOCK_FULL_TIME
       }
       
       //heartbeat (mostly off)
@@ -494,10 +502,10 @@ void loop()
     //locked
     else
     {
-      digitalWrite(RFID_LOCK, HIGH); 
-//       delay(100);
-//       analogWrite(RFID_LOCK, 64);
-//       delay(1000);
+      if ( ((millis()-last_scan_time)%RFID_LOCK_HOLD_TIME) < RFID_LOCK_FULL_TIME)
+        analogWrite(RFID_LOCK_PIN, 255);  //pulse the lock with full power
+      else
+        analogWrite(RFID_LOCK_PIN, RFID_LOCK_DUTY); //hold the lock with minimum power
       
       //glowing heartbeat (mostly on)
       if (led && millis()-led_time > 1000)
