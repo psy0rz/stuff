@@ -117,12 +117,30 @@ char rfid_pos=0;
 
 
 //send message to master
-bool send_master(const char * event)
+bool send_master(const char * event, char *par=NULL)
 {
     RF24NetworkHeader header(MASTER_NODE, 'l');
     char msg_buf[MAX_MSG]; 
 
     strcpy_P(msg_buf, event);
+
+    if (par!=NULL)
+    {
+      strcat(msg_buf," ");
+      strcat(msg_buf, par);
+    }
+
+    //if we're not the master, print sended messages on serial as well
+    //this way we can use the serial api also when there is no network connection.
+    if (this_node!=MASTER_NODE)
+    {
+      Serial.print('0');
+      Serial.print(this_node,OCT);
+      Serial.print(' ');
+      Serial.println(msg_buf);
+    }
+
+
     if (!network.write(header,msg_buf,strlen(msg_buf)+1))
     {
       //this is mostly for debugging:
@@ -130,11 +148,9 @@ bool send_master(const char * event)
       Serial.print(this_node,OCT);
       Serial.print(F(" net.error "));
       Serial.println(msg_buf);
+      return(false);
     }
-    else
-    {
-      return(true);
-    }
+    return(true);
 }
 
 //parse and handle 0 terminated message, as well as forward it to rs232
