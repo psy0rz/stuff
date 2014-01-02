@@ -8,21 +8,22 @@
  *
  * Using NRF24 modules for communication 
  * 
- * Serial API output:
- * rfid_raw XXXXX     Raw received rfid text-data (including checksum)
- * rfid_ok XXXXX      Scanned known normal tag
- * rfid_nok XXXXX     Scanned unknown tag
- * rfid_admin XXXXX   Scanned admin tag (index 0), next to be scanned will be added.
- * rfid_clear XXXXX   Scanned clear all tag (index 1). clears all normal tags 
- * rfid_add XXXX      Added XXX to db
- * rfid_del XXXX      Deleted XXX from db
- * rfid_ack           Acknowledgement of serial api input commands below
- * rfid_msg           Messages and debugging
+ * API command input
+ * node.id 0XXX          set rf24Network node id. (and restarts)
+ * rfid.set_admin XXXX  reset admin tag to this value. responds with rfid.admin_set to master
+ * rfid.set_clear XXXX  reset admin tag to this value. responds with rfid.clear_set to master
+ 
+ * API events output, send to master:
+ * node.boot  XXX     Node has (re)-booted. (prints bytes free)
+ * node.ping          Registering and monitoring of node/network online status
+ * rfid.ok XXXXX      Scanned known normal tag
+ * rfid.nok XXXXX     Scanned unknown tag
+ * rfid.admin XXXXX   Scanned admin tag (index 0), next to be scanned will be added.
+ * rfid.clear XXXXX   Scanned clear all tag (index 1). clears all normal tags 
+ * rfid.add XXXX      Added XXX to db
+ * rfid.del XXXX      Deleted XXX from db
+ * rfid.msg XXX       Messages and debugging
  * 
- * Serial API input:
- * rfid_admin XXXX    reset admin tag to this value
- * rfid_clear XXXX    reset clear tag to this value
-
 */
 
 
@@ -68,11 +69,10 @@ led pin         D4
 #ifdef ENABLE_MFRC522
 #include <MFRC522.h>
 #include <SPI.h>
-
 MFRC522 mfrc522(CS_MFRC522_PIN, RST_PIN); // Create MFRC522 instance.
 #endif
 
-//125 khz stuff
+//125 khz stuff (deprecated)
 #ifdef ENABLE_125KHZ
 #include <SoftwareSerial.h>
 //rfid 125khz config
@@ -91,6 +91,7 @@ SoftwareSerial rfid(RFID_125KHZ_PIN,3);   //rfid reader RX pin + dummy pin (you 
 #include <RF24Network.h>
 #include <RF24.h>
 #include <EEPROM.h>
+#include <MemoryFree.h>
 
 // nRF24L01(+) radio using the Getting Started board
 RF24 radio(2, CS_RF24_PIN); //dummy + chipselect
@@ -100,7 +101,7 @@ RF24Network network(radio);
 uint16_t this_node=0;
 
 #define MAX_MSG (32-sizeof(RF24NetworkHeader))
-#define EEPROM_NODE_ADDR 1023 //location to store node addres (2 bytes)
+#define EEPROM_NODE_ADDR 1022 //location to store node addres (2 bytes)
 #define MASTER_NODE 0 //node to send all our events to. (this doenst have to be the rootnode)
 
 
@@ -148,12 +149,15 @@ bool send_master(const char * event, char *par=NULL)
 {
     char msg_buf[MAX_MSG]; 
 
-    strcpy_P(msg_buf, event);
+    strncpy_P(msg_buf, event, sizeof(msg_buf));
+    msg_buf[MAX_MSG-1]=0;
 
-    if (par!=NULL)
+    int left=MAX_MSG-1-strlen(msg_buf);
+    if (par!=NULL && left>2)
     {
+      ;
       strcat(msg_buf," ");
-      strcat(msg_buf, par);
+      strncat(msg_buf, par,left-1);
     }
     return(send_master_msg(msg_buf));
 }
@@ -178,6 +182,14 @@ bool send_master_rfid(const char * event, unsigned char id[])
 }
 
 
+//convert ascii hex rfid to bytes
+void rfid_hex_to_bytes(char * id_str, unsigned char id[])
+{ 
+  for (int i=0; i<= RFID_LEN; i++)
+    sscanf(&id_str[i*2], "%2hhx", &id[i]); 
+}
+
+
 //parse and handle 0 terminated message, as well as forward it to rs232
 bool handle_message(uint16_t from, char * event,  char * par)
 {
@@ -197,7 +209,7 @@ bool handle_message(uint16_t from, char * event,  char * par)
   // Serial.println(par);
 
   //change node id
-  if (strcmp_P(event, PSTR("net.id"))==0)
+  if (strcmp_P(event, PSTR("node.id"))==0)
   {
     //update eeprom
     sscanf(par,"%d", &this_node);
@@ -205,6 +217,28 @@ bool handle_message(uint16_t from, char * event,  char * par)
     EEPROM.write(EEPROM_NODE_ADDR+1, 0xff & this_node);
     delay(1000);
     reboot();
+  }
+  else if (strcmp_P(event, PSTR("rfid.set_adm"))==0)
+  {
+    unsigned char id[RFID_LEN];
+    rfid_hex_to_bytes(par, id);
+
+    //store as admin key
+    rfid_eeprom_put(0,id);
+    send_master_rfid(PSTR("rfid.adm_set"), id);
+  }
+  else if (strcmp_P(event, PSTR("rfid.set_clr"))==0)
+  {
+    unsigned char id[RFID_LEN];
+    rfid_hex_to_bytes(par, id);
+
+    //store as clear key
+    rfid_eeprom_put(1,id);
+    send_master_rfid(PSTR("rfid.clr_set"), id);
+  }
+  else if (strcmp_P(event, PSTR("rfid.clr"))==0)
+  {
+    rfid_clear();
   }
 }
 
@@ -274,9 +308,6 @@ void message_loop()
 void setup() 
 {
   Serial.begin(9600);
-  Serial.println(F("rfid_msg initializing"));
-
-
   SPI.begin();  
 
 #ifdef ENABLE_125KHZ
@@ -290,38 +321,21 @@ void setup()
   mfrc522.PCD_Init(); 
 #endif 
 
-  pinMode(RFID_LED_PIN, OUTPUT);     
-  pinMode(RFID_LOCK_PIN, OUTPUT);
-  pinMode(RFID_MANUAL_PIN, INPUT_PULLUP);
-  
-  
+
   //rf24 network stuff 
   this_node=(EEPROM.read(EEPROM_NODE_ADDR) << 8) | EEPROM.read(EEPROM_NODE_ADDR+1);
   radio.begin();
   network.begin(100, this_node);
 
-  //print bootmessage over serial, to see our nodeid
-  Serial.print('0');
-  Serial.print(this_node, OCT);
-  Serial.println(F(" net.booted"));
+  pinMode(RFID_LED_PIN, OUTPUT);     
+  pinMode(RFID_LOCK_PIN, OUTPUT);
+  pinMode(RFID_MANUAL_PIN, INPUT_PULLUP);
 
+  char par[MAX_MSG];
+  sprintf_P(par, PSTR("%i free"), freeMemory());
+  send_master(PSTR("node.boot"), par);
   
 }
-
-//print rfid status message and id to serial
-/*void send_master_rfid(const char *status, unsigned char id[])
-{
-    Serial.print(status);
-    Serial.print(" ");
-    char buf[3];
-    for (int i=0; i< RFID_LEN; i++)
-    {
-      sprintf(buf, "%02hhX", id[i]);
-      buf[2]=0;
-      Serial.print(buf);
-    }
-    Serial.println();
-}*/
 
 
 //stores id at specified nr in eeprom
@@ -458,7 +472,7 @@ void rfid_check(unsigned char check_id[])
       }
       else
       {
-        Serial.println(F("rfid_msg out of key storage"));
+        send_master(PSTR("rfid.msg out of key storage"));
       }
       state=NORMAL;
     }
@@ -477,7 +491,7 @@ void rfid_check(unsigned char check_id[])
     }
     else if (id_index==1) //clear all match
     {
-      send_master_rfid(PSTR("rfid.clear"), check_id);
+      send_master_rfid(PSTR("rfid.clr"), check_id);
       //delete all nonzero normal keys
       rfid_clear();
     }
@@ -676,7 +690,7 @@ void loop()
       }
       
       //heartbeat (mostly off)
-      if (led && millis()-led_time > 50)
+      if (led && millis()-led_time > 100)
       {
         led=0;
         digitalWrite(RFID_LED_PIN, led);
@@ -705,7 +719,7 @@ void loop()
         digitalWrite(RFID_LED_PIN, led);
         led_time=millis();
       }
-      if (!led && millis()-led_time > 50)
+      if (!led && millis()-led_time > 100)
       {
         led=1;
         digitalWrite(RFID_LED_PIN, led);
@@ -717,58 +731,5 @@ void loop()
   //send/receive network and serial messages
   message_loop(); 
 
-  //TODO: cleanup
-  //serial stuff to add the admin and clear-id's for the first time.
-  if (Serial.available())
-  {
-    int r=Serial.readBytesUntil(' ', rfid_buf, RFID_STR_LEN-1);
-      
-    if (r==0)
-      return;
-    
-    rfid_buf[r]=0;
-    
-    if (strcmp(rfid_buf, ("rfid_set_admin"))==0)
-    {
-      //read hex id
-      int r=Serial.readBytesUntil('\n', rfid_buf, RFID_STR_LEN-1);
-      
-      if (r==0)
-        return;
-      
-      //convert ascii hex to bytes
-      for (int i=0; i< RFID_LEN; i++)
-        sscanf(&rfid_buf[i*2], "%2hhx", &rfid_buf[i]); 
-      
-      //store as admin
-      rfid_eeprom_put(0,(unsigned char*)rfid_buf);
-      send_master_rfid(PSTR("rfid_ack"), (unsigned char*)rfid_buf);
-      
-    }
-    else if (strcmp(rfid_buf, ("rfid_set_clear"))==0)
-    {
-      //read hex id
-      int r=Serial.readBytesUntil('\n', rfid_buf, RFID_STR_LEN-1);
-
-      //convert ascii hex to bytes
-      for (int i=0; i< RFID_LEN; i++)
-        sscanf(&rfid_buf[i*2], "%2hhx", &rfid_buf[i]); 
-
-      if (r==0)
-        return;
-      
-      //store as clear id
-      rfid_eeprom_put(1,(unsigned char*)rfid_buf);
-      send_master_rfid(PSTR("rfid_ack"), (unsigned char*)rfid_buf);
-    }
-    else if (strcmp(rfid_buf, ("rfid_clear"))==0)
-    {
-      rfid_clear();
-    }
-
-
-  }
-
-  
 }
 
