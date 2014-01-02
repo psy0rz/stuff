@@ -5,8 +5,8 @@
  * Using basic RDM630 reader: http://dx.com/p/125k-rfid-card-reader-module-rdm630-series-non-contact-rf-id-card-module-for-arduino-green-red-206725
  *
  * Not anymore, now using AT125 http://dx.com/p/125k-rfid-card-reader-module-non-contact-rf-id-card-module-for-arduino-green-236289
- * 
- * Doesnt require interrupts, so should work with softserial as well.
+ *
+ * Using NRF24 modules for communication 
  * 
  * Serial API output:
  * rfid_raw XXXXX     Raw received rfid text-data (including checksum)
@@ -113,22 +113,10 @@ char rfid_pos=0;
 
 
 
-
-
-
-//send message to master
-bool send_master(const char * event, char *par=NULL)
+//send a raw message-line to the master (and do serial echoing and error checking)
+bool send_master_msg(const char * msg_buf)
 {
     RF24NetworkHeader header(MASTER_NODE, 'l');
-    char msg_buf[MAX_MSG]; 
-
-    strcpy_P(msg_buf, event);
-
-    if (par!=NULL)
-    {
-      strcat(msg_buf," ");
-      strcat(msg_buf, par);
-    }
 
     //if we're not the master, print sended messages on serial as well
     //this way we can use the serial api also when there is no network connection.
@@ -151,7 +139,44 @@ bool send_master(const char * event, char *par=NULL)
       return(false);
     }
     return(true);
+
 }
+
+
+//send message with string parameter to master
+bool send_master(const char * event, char *par=NULL)
+{
+    char msg_buf[MAX_MSG]; 
+
+    strcpy_P(msg_buf, event);
+
+    if (par!=NULL)
+    {
+      strcat(msg_buf," ");
+      strcat(msg_buf, par);
+    }
+    return(send_master_msg(msg_buf));
+}
+
+
+//send a message to the master with a rfid-id as parameter (will be converted to hex string)
+bool send_master_rfid(const char * event, unsigned char id[])
+{
+    char msg_buf[MAX_MSG]; 
+
+    strcpy_P(msg_buf, event);
+    strcat(msg_buf," ");
+
+    char buf[3];
+    for (int i=0; i< RFID_LEN; i++)
+    {
+      sprintf(buf, "%02hhX", id[i]);
+      buf[2]=0;
+      strcat(msg_buf,buf);
+    }
+    send_master_msg(msg_buf);
+}
+
 
 //parse and handle 0 terminated message, as well as forward it to rs232
 bool handle_message(uint16_t from, char * event,  char * par)
@@ -284,7 +309,7 @@ void setup()
 }
 
 //print rfid status message and id to serial
-void rfid_print_status(const __FlashStringHelper *status, unsigned char id[])
+/*void send_master_rfid(const char *status, unsigned char id[])
 {
     Serial.print(status);
     Serial.print(" ");
@@ -296,7 +321,7 @@ void rfid_print_status(const __FlashStringHelper *status, unsigned char id[])
       Serial.print(buf);
     }
     Serial.println();
-}
+}*/
 
 
 //stores id at specified nr in eeprom
@@ -381,7 +406,7 @@ void rfid_clear()
     rfid_eeprom_get(i, id);
     if (!rfid_is_zero(id))
     {
-      rfid_print_status(F("rfid_del"), id);
+      send_master_rfid(PSTR("rfid.del"), id);
       rfid_zero(id);
       rfid_eeprom_put(i, id);
     }
@@ -429,7 +454,7 @@ void rfid_check(unsigned char check_id[])
       {
         //store it
         rfid_eeprom_put(id_index, check_id);
-        rfid_print_status(F("rfid_add"), check_id);
+        send_master_rfid(PSTR("rfid.add"), check_id);
       }
       else
       {
@@ -442,23 +467,23 @@ void rfid_check(unsigned char check_id[])
   {
     if (id_index==-1) //unknown
     {
-      rfid_print_status(F("rfid_nok"), check_id);
+      send_master_rfid(PSTR("rfid.nok"), check_id);
     }
     else if (id_index==0) //admin match
     {
       //change to add-state
-      rfid_print_status(F("rfid_admin"), check_id);
+      send_master_rfid(PSTR("rfid.admin"), check_id);
       state=ADD; 
     }
     else if (id_index==1) //clear all match
     {
-      rfid_print_status(F("rfid_clear"), check_id);
+      send_master_rfid(PSTR("rfid.clear"), check_id);
       //delete all nonzero normal keys
       rfid_clear();
     }
     else //normal match
     {
-      rfid_print_status(F("rfid_ok"), check_id);
+      send_master_rfid(PSTR("rfid.ok"), check_id);
       if (rfid_unlocked)
         rfid_unlocked=0;
       else
@@ -491,8 +516,8 @@ bool rfid_read_RDM630(char *rfid_buf)
     }
     else if (c==3) //end of data
     {    
-      Serial.print(F("rfid_raw "));
-      Serial.println(rfid_buf);
+      //Serial.print(F("rfid_raw "));
+      //Serial.println(rfid_buf);
 
       //convert ascii hex to bytes and generate checksum
       unsigned char checksum=0;
@@ -535,8 +560,8 @@ bool rfid_read_ATS125(char *rfid_buf)
 
       rfid_buf[rfid_pos-2]=0; //strip the crlf
 
-      Serial.print(F("rfid_raw "));
-      Serial.println(rfid_buf);
+      //Serial.print(F("rfid_raw "));
+      //Serial.println(rfid_buf);
 
       //convert ascii decimal number to bytes
       char rfid_bytes[RFID_STR_LEN]; 
@@ -717,7 +742,7 @@ void loop()
       
       //store as admin
       rfid_eeprom_put(0,(unsigned char*)rfid_buf);
-      rfid_print_status(F("rfid_ack"), (unsigned char*)rfid_buf);
+      send_master_rfid(PSTR("rfid_ack"), (unsigned char*)rfid_buf);
       
     }
     else if (strcmp(rfid_buf, ("rfid_set_clear"))==0)
@@ -734,7 +759,7 @@ void loop()
       
       //store as clear id
       rfid_eeprom_put(1,(unsigned char*)rfid_buf);
-      rfid_print_status(F("rfid_ack"), (unsigned char*)rfid_buf);
+      send_master_rfid(PSTR("rfid_ack"), (unsigned char*)rfid_buf);
     }
     else if (strcmp(rfid_buf, ("rfid_clear"))==0)
     {
