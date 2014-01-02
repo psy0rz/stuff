@@ -113,6 +113,15 @@ char rfid_buf[RFID_STR_LEN]; //rfid read buffer (we get them in ascii hex string
 char rfid_pos=0;
 
 
+//dutycycle function to make stuff blink without using memory 
+//returns true during 'on' ms, with total periode time 'total' ms.
+bool duty_cycle(unsigned long on, unsigned long total, unsigned long starttime=0)
+{
+  if (!starttime)
+    return((millis()%total)<on);
+  else
+    return(((millis()-starttime)%total)<on);
+}
 
 //send a raw message-line to the master (and do serial echoing and error checking)
 bool send_master_msg(const char * msg_buf)
@@ -246,9 +255,8 @@ bool handle_message(uint16_t from, char * event,  char * par)
 //check if there are messages to receive from the network, or send from serial.
 void message_loop()
 {
-  static word last_ping=0;
   char msg_buf[MAX_MSG]; 
-
+  static unsigned long last_ping;
   //Pump the network regularly
   network.update();
 
@@ -293,7 +301,7 @@ void message_loop()
   }
 
   //ping master node
-  if ( (word)millis()-last_ping > 1000)
+  if ( millis()-last_ping > 60000)
   {
     send_master(PSTR("net.ping"));
     last_ping=millis();
@@ -627,8 +635,6 @@ bool rfid_read_mfrc522(char *rfid_buf)
 
 void loop()
 {
-  static bool led=true;
-  static unsigned long led_time=0;
   
 // you can use one or both :)
   if (
@@ -646,9 +652,10 @@ void loop()
     )
   {
     //scanned data is ok, now check what to do with it
-    digitalWrite(RFID_LED_PIN, !led);
     delay(10);
-    digitalWrite(RFID_LED_PIN, led);
+    digitalWrite(RFID_LED_PIN, 0);
+    delay(10);
+    digitalWrite(RFID_LED_PIN, 1);
 
     rfid_check((unsigned char *)rfid_buf);
     last_time=millis();
@@ -670,13 +677,7 @@ void loop()
 
   if (state==ADD)
   {
-    //show a "waiting for input" pattern
-    if (millis()-led_time > 100)
-    {
-      led=!led;
-      digitalWrite(RFID_LED_PIN, led);
-      led_time=millis();
-    }
+      digitalWrite(RFID_LED_PIN, duty_cycle(100,200));
   }
   else if (state==NORMAL)
   {
@@ -688,40 +689,15 @@ void loop()
       {
           rfid_unlocked=0;
       }
-      
-      //heartbeat (mostly off)
-      if (led && millis()-led_time > 100)
-      {
-        led=0;
-        digitalWrite(RFID_LED_PIN, led);
-        led_time=millis();
-      }
-      if (!led && millis()-led_time > 2000)
-      {
-        led=1;
-        digitalWrite(RFID_LED_PIN, led);
-        led_time=millis();
-      }
+          
+      digitalWrite(RFID_LED_PIN, duty_cycle(100,2000));
 
     }
     //locked
     else
     {
       digitalWrite(RFID_LOCK_PIN, HIGH); 
-      
-      //glowing heartbeat (mostly on)
-      if (led && millis()-led_time > 1000)
-      {
-        led=0;
-        digitalWrite(RFID_LED_PIN, led);
-        led_time=millis();
-      }
-      if (!led && millis()-led_time > 100)
-      {
-        led=1;
-        digitalWrite(RFID_LED_PIN, led);
-        led_time=millis();
-      }
+      digitalWrite(RFID_LED_PIN, duty_cycle(1900,2000));
     }
   }
   
