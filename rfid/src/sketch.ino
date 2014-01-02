@@ -58,7 +58,7 @@ led pin         D4
 #define RFID_LED_PIN 4             //feedback led
 #define RFID_LOCK_PIN 7            //lock output
 #define RFID_MANUAL_PIN 6          //manual open by switch pin
-#define RFID_MANUAL_LEVEL 1    //level to manual open door (1 or 0)
+#define RFID_MANUAL_LEVEL 0    //level to manual open door (1 or 0)
 //#define RFID_125KHZ_PIN 5 //rx pin for 125khz module
 
 //choose one, or both
@@ -708,9 +708,6 @@ void loop()
     else
     {
       digitalWrite(RFID_LOCK_PIN, HIGH); 
-//       delay(100);
-//       analogWrite(RFID_LOCK_PIN, 64);
-//       delay(1000);
       
       //glowing heartbeat (mostly on)
       if (led && millis()-led_time > 1000)
