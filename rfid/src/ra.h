@@ -19,7 +19,7 @@
 // SoftwareSerial rfid(RFID_125KHZ_PIN,3);   //rfid reader RX pin + dummy pin (you can use it for other stuff)
 // #endif
 
-#define RFID_LEN 5      //rfid id length in bytes
+#define RFID_LEN 4      //rfid id length in bytes
 #define RFID_IDS 100    //number of ids to store in eeprom
 
 //#define RFID_LED_PIN 11             //feedback led
@@ -27,9 +27,9 @@
 //#define RFID_MANUAL 10          //manual open by switch pin
 
 
-#define RFID_STR_LEN 16 //(RFID_LEN*2)+2+1
-char buf[RFID_STR_LEN]; //rfid read buffer (we get them in ascii hex strings, so we need twice the space)
-char pos=0;
+// #define RFID_STR_LEN 16 //(RFID_LEN*2)+2+1
+// char buf[RFID_STR_LEN]; //rfid read buffer (we get them in ascii hex strings, so we need twice the space)
+// char pos=0;
 
 class Ra
 {
@@ -276,20 +276,20 @@ class Ra
       {
         send(PSTR("rfid.ok"), check_id);
         if (state==state_locked)
-          change_state(state_unlocked,RFID_UNLOCK_TIME);
+          change_state(state_unlocked,config.ra_unlock_time);
         else
           change_state(state_locked,0);
       }
     }
   }
 
-  //reset and clear global buf buffer (for security)
-  void reset_buf(char *buf)
-  {
-    pos=0;
-    for (int i=0; i< RFID_STR_LEN; i++)
-      buf[i]=0;
-  }
+  // //reset and clear global buf buffer (for security)
+  // void reset_buf(char *buf)
+  // {
+  //   pos=0;
+  //   for (int i=0; i< RFID_STR_LEN; i++)
+  //     buf[i]=0;
+  // }
 
   // #ifdef ENABLE_125KHZ
 
@@ -394,7 +394,6 @@ class Ra
       return(false);
     }
 
-    reset_buf(buf);
     memcpy(buf, mfrc522.uid.uidByte, 4); //for now we only support 4 bytes. this is default 
     return(true);
   }
@@ -402,6 +401,7 @@ class Ra
 
   void loop()
   {
+    char buf[RFID_LEN];
     if (read_mfrc522(buf))
     {
       //ignore during quick repeats
@@ -457,6 +457,14 @@ class Ra
       change_state(state_locked,0);
       return(true);
     }
+
+    if (strcmp_P(event, PSTR("rfid.set_ut"))==0)
+    {
+      config.ra_unlock_time=atoi(par);
+      config_update();
+      return(true);
+    }
+
 
     return(false);
   }

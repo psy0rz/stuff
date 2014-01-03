@@ -31,7 +31,7 @@ led pin         D4
 #define RFID_LED_PIN 4             //feedback led
 
 #define RFID_LOCK_PIN 9            //lock output
-#define RFID_UNLOCK_TIME 4         //time to unlock door in seconds, after scanning a tag
+
 //lock powersaving stuff
 #define RFID_LOCK_DUTY_ON      100    //full on time in ms when locking
 #define RFID_LOCK_DUTY_TOTAL   10000  //total time of pwm duty cycle 

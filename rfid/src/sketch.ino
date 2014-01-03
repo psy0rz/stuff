@@ -12,8 +12,9 @@
  * 
  * API command input
  * node.id 0XXX         set rf24Network node id. (and restarts)
- * rfid.set_adm XXXX  reset admin tag to this value. responds with rfid.adm_set to master
- * rfid.set_clr XXXX  reset admin tag to this value. responds with rfid.clr_set to master
+ * rfid.set_adm XXXX    reset admin tag to this value. responds with rfid.adm_set to master
+ * rfid.set_clr XXXX    reset admin tag to this value. responds with rfid.clr_set to master
+ * rfid.set_ut X        set unlock time, after scanning a tag
  * rfid.unlock X        unlock for X seconds
  * rfid.lock            lock 
  
@@ -34,7 +35,6 @@
 #include <EEPROM.h>
 
 #include "pin_config.h"
-#include "sketch.h"
 #include "messaging.h"
 #include "eeprom_config.h"
 #include "utils.h"
@@ -99,7 +99,7 @@ void loop()
   //manual opening of door
   if (digitalRead(RFID_MANUAL_PIN)==RFID_MANUAL_LEVEL)
   {
-    ra.change_state(Ra::state_unlocked, RFID_UNLOCK_TIME);
+    ra.change_state(Ra::state_unlocked, config.ra_unlock_time);
   }
 
   switch(ra.get_state()) 

@@ -8,7 +8,7 @@
 struct Config
 {
   uint16_t node_id;
-
+  word ra_unlock_time; //time to unlock door in seconds, after scanning a tag
 } config;
 
 
