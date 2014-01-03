@@ -8,13 +8,11 @@
 #include <avr/pgmspace.h>
 #include "eeprom_config.h"
 #include "utils.h"
+#include <MemoryFree.h>
+
 
 #define MAX_MSG (32-sizeof(RF24NetworkHeader))
 #define MASTER_NODE 0 //node to send all our events to. (this doenst have to be the rootnode)
-
-
-
-
 
 
 // nRF24L01(+) radio using the Getting Started board
@@ -35,6 +33,11 @@ class Msg
   {
     radio.begin();
     network.begin(100, config.node_id);
+
+    char par[MAX_MSG];
+    sprintf_P(par, PSTR("%i free"), freeMemory());
+    send(PSTR("node.boot"), par);
+
   }
 
   //send a raw message-line to the master (and do serial echoing and error checking)

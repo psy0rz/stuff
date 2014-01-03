@@ -6,7 +6,9 @@
  *
  * Not anymore, now using AT125 http://dx.com/p/125k-rfid-card-reader-module-non-contact-rf-id-card-module-for-arduino-green-236289
  *
- * Using NRF24 modules for communication 
+ * Using NRF24 modules for communication.
+ *
+ * Look in pin_config for pinouts
  * 
  * API command input
  * node.id 0XXX         set rf24Network node id. (and restarts)
@@ -29,7 +31,6 @@
 
 
 #include <EEPROM.h>
-#include <MemoryFree.h>
 
 #include "pin_config.h"
 #include "sketch.h"
@@ -38,7 +39,7 @@
 #include "utils.h"
 #include "ra.h"
 
-
+//called when receiving an event that was received via network or serial 
 void Msg::handle(uint16_t from, char * event,  char * par)
 {
   //when debugging parsing issues
@@ -48,7 +49,6 @@ void Msg::handle(uint16_t from, char * event,  char * par)
   // Serial.println(event);
   // Serial.println("par: ");
   // Serial.println(par);
-
 
   if (ra.handle(from,event,par))
   {
@@ -63,9 +63,6 @@ void Msg::handle(uint16_t from, char * event,  char * par)
 
 
 }
-
-
-
 
 
 void setup() 
@@ -83,9 +80,6 @@ void setup()
   pinMode(RFID_LOCK_PIN, OUTPUT);
   pinMode(RFID_MANUAL_PIN, INPUT_PULLUP);
 
-  char par[MAX_MSG];
-  sprintf_P(par, PSTR("%i free"), freeMemory());
-  msg.send(PSTR("node.boot"), par);
   
 }
 
