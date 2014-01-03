@@ -38,7 +38,7 @@ SPI MOSI        D11        MOSI(blue)        6 (mosi,blue)
 SPI MISO        D12        MISO(green)       7 (miso,violet)
 SPI SCK         D13        SCK(violet)       5 (sck,green)
 CS RF24         D10                          4 (csn,yellow)
-CS MFRC522      D8         SDA(gray)
+CS MFRC522      D8   
 RST             D9         RST(red)
 IRQ             D2                           8 (irq,gray)
 lock pin        D6
@@ -54,11 +54,11 @@ led pin         D4
 #define CS_MFRC522_PIN 8
 
  //reset pin for all SPI devices
-#define RST_PIN 9
+#define RST_PIN 6
 
 #define RFID_LED_PIN 4             //feedback led
 
-#define RFID_LOCK_PIN 6            //lock output
+#define RFID_LOCK_PIN 9            //lock output
 #define RFID_UNLOCK_TIME 4         //time to unlock door in seconds, after scanning a tag
 //lock powersaving stuff
 #define RFID_LOCK_DUTY_ON      100    //full on time in ms when locking
@@ -349,6 +349,9 @@ void setup()
   this_node=(EEPROM.read(EEPROM_NODE_ADDR) << 8) | EEPROM.read(EEPROM_NODE_ADDR+1);
   radio.begin();
   network.begin(100, this_node);
+
+  //pin 9 and 10 different pwm freq.  122.5hz
+  TCCR1B = TCCR1B & 0b11111000 | 4;
 
   pinMode(RFID_LED_PIN, OUTPUT);     
   pinMode(RFID_LOCK_PIN, OUTPUT);
