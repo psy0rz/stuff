@@ -14,7 +14,8 @@
  * node.id 0XXX         set rf24Network node id. (and restarts)
  * rfid.set_adm XXXX  reset admin tag to this value. responds with rfid.adm_set to master
  * rfid.set_clr XXXX  reset admin tag to this value. responds with rfid.clr_set to master
- * rfid.unlock X        unlock door for X seconds
+ * rfid.unlock X        unlock for X seconds
+ * rfid.lock            lock 
  
  * API events output, send to master:
  * node.boot  XXX       Node has (re)-booted. (prints bytes free)

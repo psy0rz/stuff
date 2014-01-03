@@ -111,7 +111,8 @@ class Msg
       reboot();
       return(true); //never reached
     }
-
+    
+    return(false);
   }
 
 

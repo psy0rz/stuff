@@ -193,12 +193,16 @@ class Ra
 
     state=new_state;
 
+
+    char par[6];
+    sprintf(par, "%d", duration);
+
     if (state==state_add)
-      msg.send(PSTR("rfid.state add"));
+      msg.send(PSTR("rfid.state add"),par);
     else if (state==state_locked)
-      msg.send(PSTR("rfid.state locked"));
+      msg.send(PSTR("rfid.state locked"),par);
     else if (state==state_unlocked)
-      msg.send(PSTR("rfid.state unlocked"));
+      msg.send(PSTR("rfid.state unlocked"),par);
 
     state_started=millis();
     state_duration=duration;
@@ -439,6 +443,18 @@ class Ra
     if (strcmp_P(event, PSTR("rfid.clr"))==0)
     {
       clear();
+      return(true);
+    }
+
+    if (strcmp_P(event, PSTR("rfid.unlock"))==0)
+    {
+      change_state(state_unlocked, atoi(par));
+      return(true);
+    }
+
+    if (strcmp_P(event, PSTR("rfid.lock"))==0)
+    {
+      change_state(state_locked,0);
       return(true);
     }
 
