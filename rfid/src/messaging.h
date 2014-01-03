@@ -84,7 +84,31 @@ class Msg
   }
 
   //should be implemented in our main sketch and call other handlers and/or do stuff
-  bool handle(uint16_t from, char * event,  char * par);
+  void handle(uint16_t from, char * event,  char * par);
+
+
+  bool internal_handle(uint16_t from, char * event,  char * par)
+  {
+    //echo received messages to host computer
+    Serial.print('0');
+    Serial.print(from,OCT);
+    Serial.print(' ');
+    Serial.print(event);
+    Serial.print(' ');
+    Serial.println(par);
+
+    //change node id
+    if (strcmp_P(event, PSTR("node.id"))==0)
+    {
+      //update eeprom
+      sscanf(par,"%u", &config.node_id);
+      config_update();
+      delay(1000);
+      reboot();
+      return(true); //never reached
+    }
+
+  }
 
 
   //check if there are messages to receive from the network, or send from serial.
@@ -115,7 +139,9 @@ class Msg
           (*par)=0; //0 terminate event-name
           par++; //par starts at next byte
         }
-        handle(header.from_node, msg_buf, par);
+
+        if (!internal_handle(header.from_node, msg_buf, par))
+          handle(header.from_node, msg_buf, par);
       }
     }
 
