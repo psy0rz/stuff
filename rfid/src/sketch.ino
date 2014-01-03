@@ -27,20 +27,16 @@
  * 
 */
 
-#include "pin_config.h"
 
-
-
-
-#include <avr/pgmspace.h>
 #include <EEPROM.h>
 #include <MemoryFree.h>
 
+#include "pin_config.h"
 #include "sketch.h"
 #include "messaging.h"
 #include "eeprom_config.h"
 #include "utils.h"
-
+#include "ra.h"
 
 
 void Msg::handle(uint16_t from, char * event,  char * par)
@@ -108,19 +104,19 @@ void loop()
   //manual opening of door
   if (digitalRead(RFID_MANUAL_PIN)==RFID_MANUAL_LEVEL)
   {
-    ra.change_state(ra::state_unlocked, RFID_UNLOCK_TIME);
+    ra.change_state(Ra::state_unlocked, RFID_UNLOCK_TIME);
   }
 
   switch(ra.get_state()) 
   {
 
-    case rfid_state_add:
+    case Ra::state_add:
       digitalWrite(RFID_LED_PIN, duty_cycle(100,200));
       break;
 
-    case rfid_state_locked:
+    case Ra::state_locked:
       //lock powersaving: only use short pulses to power the lock, and then fallback to pwm mode.
-      if (duty_cycle(RFID_LOCK_DUTY_ON, RFID_LOCK_DUTY_TOTAL) || (millis()-rfid_state_started < 1000) )
+      if (duty_cycle(RFID_LOCK_DUTY_ON, RFID_LOCK_DUTY_TOTAL) || (millis()-ra.state_started < 1000) )
         analogWrite(RFID_LOCK_PIN, 255);
       else
         analogWrite(RFID_LOCK_PIN, RFID_LOCK_PWM);
@@ -128,7 +124,7 @@ void loop()
       digitalWrite(RFID_LED_PIN, duty_cycle(1900,2000));
       break;
 
-    case rfid_state_unlocked:
+    case Ra::state_unlocked:
       analogWrite(RFID_LOCK_PIN, 0);
       digitalWrite(RFID_LED_PIN, duty_cycle(100,2000));
       break;

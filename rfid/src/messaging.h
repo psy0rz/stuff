@@ -7,6 +7,7 @@
 #include "pin_config.h"
 #include <avr/pgmspace.h>
 #include "eeprom_config.h"
+#include "utils.h"
 
 #define MAX_MSG (32-sizeof(RF24NetworkHeader))
 #define MASTER_NODE 0 //node to send all our events to. (this doenst have to be the rootnode)
