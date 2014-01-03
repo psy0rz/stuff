@@ -63,10 +63,7 @@ SoftwareSerial rfid(RFID_125KHZ_PIN,3);   //rfid reader RX pin + dummy pin (you 
 
 #include "sketch.h"
 #include "messaging.h"
-
-
-
-
+#include "eeprom_config.h"
 
 void(* reboot) (void) = 0;
 
@@ -119,9 +116,8 @@ bool Msg::handle(uint16_t from, char * event,  char * par)
   if (strcmp_P(event, PSTR("node.id"))==0)
   {
     //update eeprom
-    sscanf(par,"%d", &this_node);
-    EEPROM.write(EEPROM_NODE_ADDR, this_node >> 8);
-    EEPROM.write(EEPROM_NODE_ADDR+1, 0xff & this_node);
+    sscanf(par,"%u", &config.node_id);
+    config_update();
     delay(1000);
     reboot();
   }
@@ -174,6 +170,8 @@ bool send_master_rfid(const char * event, unsigned char id[])
 
 void setup() 
 {
+  config_read();
+
   Serial.begin(9600);
   SPI.begin();  
 
@@ -189,8 +187,6 @@ void setup()
 #endif 
 
 
-  //rf24 network stuff 
-  this_node=(EEPROM.read(EEPROM_NODE_ADDR) << 8) | EEPROM.read(EEPROM_NODE_ADDR+1);
   msg.begin();
 
   //pin 9 and 10 different pwm freq.  122.5hz

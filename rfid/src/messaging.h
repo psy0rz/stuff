@@ -6,13 +6,15 @@
 #include <RF24.h>
 #include "pin_config.h"
 #include <avr/pgmspace.h>
+#include "eeprom_config.h"
 
 #define MAX_MSG (32-sizeof(RF24NetworkHeader))
-#define EEPROM_NODE_ADDR 1022 //location to store node addres (2 bytes)
 #define MASTER_NODE 0 //node to send all our events to. (this doenst have to be the rootnode)
 
 
-uint16_t this_node=0;
+
+
+
 
 // nRF24L01(+) radio using the Getting Started board
 
@@ -31,7 +33,7 @@ class Msg
   void begin()
   {
     radio.begin();
-    network.begin(100, this_node);
+    network.begin(100, config.node_id);
   }
 
   //send a raw message-line to the master (and do serial echoing and error checking)
@@ -41,10 +43,10 @@ class Msg
 
       //if we're not the master, print sended messages on serial as well
       //this way we can use the serial api also when there is no network connection.
-      if (this_node!=MASTER_NODE)
+      if (config.node_id!=MASTER_NODE)
       {
         Serial.print('0');
-        Serial.print(this_node,OCT);
+        Serial.print(config.node_id,OCT);
         Serial.print(' ');
         Serial.println(msg_buf);
       }
@@ -53,7 +55,7 @@ class Msg
       {
         //this is mostly for debugging:
         Serial.print('0');
-        Serial.print(this_node,OCT);
+        Serial.print(config.node_id,OCT);
         Serial.print(F(" net.error "));
         Serial.println(msg_buf);
         return(false);
