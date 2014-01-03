@@ -295,6 +295,7 @@ bool RF24Network::write_to_pipe( uint16_t node, uint8_t pipe )
   do
   {
     ok = radio.write( frame_buffer, frame_size );
+  
   }
   while ( !ok && --attempts );
 

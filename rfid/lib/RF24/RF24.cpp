@@ -459,7 +459,7 @@ bool RF24::write( const void* buf, uint8_t len )
   uint8_t observe_tx;
   uint8_t status;
   uint32_t sent_at = millis();
-  const uint32_t timeout = 500; //ms to wait for timeout
+  const uint32_t timeout = 60; //ms to wait for timeout
   do
   {
     status = read_register(OBSERVE_TX,&observe_tx,1);

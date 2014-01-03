@@ -9,20 +9,21 @@
  * Using NRF24 modules for communication 
  * 
  * API command input
- * node.id 0XXX          set rf24Network node id. (and restarts)
- * rfid.set_admin XXXX  reset admin tag to this value. responds with rfid.admin_set to master
- * rfid.set_clear XXXX  reset admin tag to this value. responds with rfid.clear_set to master
+ * node.id 0XXX         set rf24Network node id. (and restarts)
+ * rfid.set_adm XXXX  reset admin tag to this value. responds with rfid.adm_set to master
+ * rfid.set_clr XXXX  reset admin tag to this value. responds with rfid.clr_set to master
+ * rfid.unlock X        unlock door for X seconds
  
  * API events output, send to master:
- * node.boot  XXX     Node has (re)-booted. (prints bytes free)
- * node.ping          Registering and monitoring of node/network online status
- * rfid.ok XXXXX      Scanned known normal tag
- * rfid.nok XXXXX     Scanned unknown tag
- * rfid.admin XXXXX   Scanned admin tag (index 0), next to be scanned will be added.
- * rfid.clear XXXXX   Scanned clear all tag (index 1). clears all normal tags 
- * rfid.add XXXX      Added XXX to db
- * rfid.del XXXX      Deleted XXX from db
- * rfid.msg XXX       Messages and debugging
+ * node.boot  XXX       Node has (re)-booted. (prints bytes free)
+ * node.ping            Registering and monitoring of node/network online status
+ * rfid.ok XXXXX        Scanned known normal tag
+ * rfid.nok XXXXX       Scanned unknown tag
+ * rfid.adm   XXXXX     Scanned admin tag (index 0), next to be scanned will be added.
+ * rfid.clr   XXXXX     Scanned clear all tag (index 1). clears all normal tags 
+ * rfid.add XXXX        Added XXX to db
+ * rfid.del XXXX        Deleted XXX from db
+ * rfid.msg XXX         Messages and debugging
  * 
 */
 
@@ -40,8 +41,8 @@ CS RF24         D10                          4 (csn,yellow)
 CS MFRC522      D8         SDA(gray)
 RST             D9         RST(red)
 IRQ             D2                           8 (irq,gray)
-lock pin        D7
-manual pin      D6
+lock pin        D6
+manual pin      D7
 led pin         D4
 
 */
@@ -56,10 +57,22 @@ led pin         D4
 #define RST_PIN 9
 
 #define RFID_LED_PIN 4             //feedback led
-#define RFID_LOCK_PIN 7            //lock output
-#define RFID_MANUAL_PIN 6          //manual open by switch pin
+
+#define RFID_LOCK_PIN 6            //lock output
+#define RFID_UNLOCK_TIME 4         //time to unlock door in seconds, after scanning a tag
+//lock powersaving stuff
+#define RFID_LOCK_DUTY_ON      100    //full on time in ms when locking
+#define RFID_LOCK_DUTY_TOTAL   10000  //total time of pwm duty cycle 
+#define RFID_LOCK_PWM  100        //lock pwm level
+
+#define RFID_MANUAL_PIN 7          //manual open by switch pin
 #define RFID_MANUAL_LEVEL 0    //level to manual open door (1 or 0)
 //#define RFID_125KHZ_PIN 5 //rx pin for 125khz module
+
+
+
+
+
 
 //choose one, or both
 #define ENABLE_MFRC522
@@ -92,6 +105,8 @@ SoftwareSerial rfid(RFID_125KHZ_PIN,3);   //rfid reader RX pin + dummy pin (you 
 #include <RF24.h>
 #include <EEPROM.h>
 #include <MemoryFree.h>
+
+#include "sketch.h"
 
 // nRF24L01(+) radio using the Getting Started board
 RF24 radio(2, CS_RF24_PIN); //dummy + chipselect
@@ -303,7 +318,7 @@ void message_loop()
   //ping master node
   if ( millis()-last_ping > 60000)
   {
-    send_master(PSTR("net.ping"));
+    send_master(PSTR("node.ping"));
     last_ping=millis();
   }
 
@@ -436,35 +451,55 @@ void rfid_clear()
 }
 
 
-//state machine that checks what to do with a scanned tag
-typedef enum {
-  NORMAL,      //normal base state
-  ADD //next scanned tag will be added as normal tag
-}  rfid_states;
 
-static rfid_states state=NORMAL;
-unsigned long rfid_unlocked=0; //time the door was unlocked. 0 means door is locked
-unsigned long last_time;
-unsigned char last_id[RFID_LEN];
+rfid_states rfid_state=rfid_state_locked;
+unsigned long rfid_state_started=0;
+word rfid_state_duration=0;
+
+void rfid_change_state(rfid_states new_state, word duration)
+{
+  if (new_state==rfid_state)
+    return;
+
+  rfid_state=new_state;
+
+  if (rfid_state==rfid_state_add)
+    send_master(PSTR("rfid.state add"));
+  else if (rfid_state==rfid_state_locked)
+    send_master(PSTR("rfid.state locked"));
+  else if (rfid_state==rfid_state_unlocked)
+    send_master(PSTR("rfid.state unlocked"));
+
+  rfid_state_started=millis();
+  rfid_state_duration=duration;
+}
+
+rfid_states rfid_get_state()
+{
+  if (rfid_state!=rfid_state_locked)
+  {
+    if (rfid_state_duration)
+    {
+      if ( (millis()-rfid_state_started)/1000 > rfid_state_duration)
+      {
+        rfid_change_state(rfid_state_locked,0);
+      }
+    }
+  }
+  return(rfid_state);
+}
+
 
 void rfid_check(unsigned char check_id[])
 {
-
-
   //ignore zero ids
   if (rfid_is_zero(check_id))
     return;
     
-  //ignore repeated ids
-  if (rfid_match(check_id, last_id))
-    return;
-
-  rfid_copy(last_id, check_id);
-  
   //find out which key matches
   int id_index=rfid_find(check_id);
   
-  if (state==ADD)
+  if (rfid_state==rfid_state_add)
   {
     if (id_index==-1) //key is still unkown
     {
@@ -482,10 +517,10 @@ void rfid_check(unsigned char check_id[])
       {
         send_master(PSTR("rfid.msg out of key storage"));
       }
-      state=NORMAL;
     }
+    rfid_change_state(rfid_state_locked,0);
   }
-  else if (state==NORMAL)
+  else if (rfid_state==rfid_state_locked || rfid_state==rfid_state_unlocked)
   {
     if (id_index==-1) //unknown
     {
@@ -494,8 +529,8 @@ void rfid_check(unsigned char check_id[])
     else if (id_index==0) //admin match
     {
       //change to add-state
-      send_master_rfid(PSTR("rfid.admin"), check_id);
-      state=ADD; 
+      send_master_rfid(PSTR("rfid.adm"), check_id);
+      rfid_change_state(rfid_state_add,10);
     }
     else if (id_index==1) //clear all match
     {
@@ -506,10 +541,10 @@ void rfid_check(unsigned char check_id[])
     else //normal match
     {
       send_master_rfid(PSTR("rfid.ok"), check_id);
-      if (rfid_unlocked)
-        rfid_unlocked=0;
+      if (rfid_state==rfid_state_locked)
+        rfid_change_state(rfid_state_unlocked,RFID_UNLOCK_TIME);
       else
-        rfid_unlocked=millis();
+        rfid_change_state(rfid_state_locked,0);
     }
   }
 }
@@ -633,9 +668,9 @@ bool rfid_read_mfrc522(char *rfid_buf)
 }
 #endif 
 
-void loop()
+
+void rfid_loop()
 {
-  
 // you can use one or both :)
   if (
 #ifdef ENABLE_125KHZ
@@ -651,58 +686,55 @@ void loop()
 #endif
     )
   {
-    //scanned data is ok, now check what to do with it
-    delay(10);
-    digitalWrite(RFID_LED_PIN, 0);
-    delay(10);
-    digitalWrite(RFID_LED_PIN, 1);
-
-    rfid_check((unsigned char *)rfid_buf);
-    last_time=millis();
-  }
-  
-  //manual opening of door
-  if (digitalRead(RFID_MANUAL_PIN)==RFID_MANUAL_LEVEL)
-  {
-    rfid_unlocked=millis();
-  }
-  
-
-  //after a few seconds of no data forget everything and reset to normal state
-  if (millis()-last_time > 1000)
-  {
-    state=NORMAL;
-    rfid_zero(last_id);
-  }
-
-  if (state==ADD)
-  {
-      digitalWrite(RFID_LED_PIN, duty_cycle(100,200));
-  }
-  else if (state==NORMAL)
-  {
-    //unlocked
-    if (rfid_unlocked)
+    static unsigned long last_scan=0;
+    //ignore during quick repeats
+    if (millis()-last_scan > 500)
     {
-      digitalWrite(RFID_LOCK_PIN, LOW); 
-      if (millis()-rfid_unlocked > 4000)
-      {
-          rfid_unlocked=0;
-      }
-          
-      digitalWrite(RFID_LED_PIN, duty_cycle(100,2000));
-
+      //scanned data is ok, now check what to do with it
+      rfid_check((unsigned char *)rfid_buf);
     }
-    //locked
-    else
-    {
-      digitalWrite(RFID_LOCK_PIN, HIGH); 
-      digitalWrite(RFID_LED_PIN, duty_cycle(1900,2000));
-    }
+    last_scan=millis();
   }
+}
+
+
+void loop()
+{
   
   //send/receive network and serial messages
   message_loop(); 
+
+  //handle rfid scans
+  rfid_loop();
+
+  //manual opening of door
+  if (digitalRead(RFID_MANUAL_PIN)==RFID_MANUAL_LEVEL)
+  {
+    rfid_change_state(rfid_state_unlocked, RFID_UNLOCK_TIME);
+  }
+
+  switch(rfid_get_state())  
+  {
+
+    case rfid_state_add:
+      digitalWrite(RFID_LED_PIN, duty_cycle(100,200));
+      break;
+
+    case rfid_state_locked:
+      //lock powersaving: only use short pulses to power the lock, and then fallback to pwm mode.
+      if (duty_cycle(RFID_LOCK_DUTY_ON, RFID_LOCK_DUTY_TOTAL) || (millis()-rfid_state_started < 1000) )
+        analogWrite(RFID_LOCK_PIN, 255);
+      else
+        analogWrite(RFID_LOCK_PIN, RFID_LOCK_PWM);
+
+      digitalWrite(RFID_LED_PIN, duty_cycle(1900,2000));
+      break;
+
+    case rfid_state_unlocked:
+      analogWrite(RFID_LOCK_PIN, 0);
+      digitalWrite(RFID_LED_PIN, duty_cycle(100,2000));
+      break;
+  }
 
 }
 
