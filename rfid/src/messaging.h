@@ -4,7 +4,6 @@
 #include <Arduino.h>
 #include <RF24Network.h>
 #include <RF24.h>
-#include "pin_config.h"
 #include <avr/pgmspace.h>
 #include "eeprom_config.h"
 #include "utils.h"
