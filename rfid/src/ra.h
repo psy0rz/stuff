@@ -389,10 +389,13 @@ class Ra
       return(false);
     }
 
+
     // Select one of the cards
     if ( ! mfrc522.PICC_ReadCardSerial()) {
       return(false);
     }
+
+    //mfrc522.PICC_DumpToSerial(&mfrc522.uid);
 
     memcpy(buf, mfrc522.uid.uidByte, 4); //for now we only support 4 bytes. this is default 
     return(true);

@@ -17,6 +17,7 @@
  * rfid.set_ut X        set unlock time, after scanning a tag
  * rfid.unlock X        unlock for X seconds
  * rfid.lock            lock 
+ * lock.set_pwm         lock pwm value
  
  * API events output, send to master:
  * node.boot  XXX       Node has (re)-booted. (prints bytes free)
@@ -55,6 +56,13 @@ void Msg::handle(uint16_t from, char * event,  char * par)
   {
     return;
   }
+
+  if (strcmp_P(event, PSTR("lock.set_pwm"))==0)
+  {
+    config.lock_pwm=atoi(par);
+    config_update();
+    return;
+  }
   
   // if (strcmp_P(event, PSTR("some.event"))==0)
   // {
@@ -70,7 +78,7 @@ void setup()
 {
   config_read();
 
-  Serial.begin(9600);
+  Serial.begin(115200);
   msg.begin();
   ra.begin();
 
@@ -114,7 +122,7 @@ void loop()
       if (duty_cycle(RFID_LOCK_DUTY_ON, RFID_LOCK_DUTY_TOTAL) || (millis()-ra.state_started < 1000) )
         analogWrite(RFID_LOCK_PIN, 255);
       else
-        analogWrite(RFID_LOCK_PIN, RFID_LOCK_PWM);
+        analogWrite(RFID_LOCK_PIN, config.lock_pwm);
 
       digitalWrite(RFID_LED_PIN, duty_cycle(1900,2000));
       break;

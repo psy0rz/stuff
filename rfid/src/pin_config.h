@@ -35,7 +35,7 @@ led pin         D4
 //lock powersaving stuff
 #define RFID_LOCK_DUTY_ON      100    //full on time in ms when locking
 #define RFID_LOCK_DUTY_TOTAL   10000  //total time of pwm duty cycle 
-#define RFID_LOCK_PWM  100        //lock pwm level
+//the pwm value is stored in config.lock_pwm
 
 #define RFID_MANUAL_PIN 7          //manual open by switch pin
 #define RFID_MANUAL_LEVEL 0    //level to manual open door (1 or 0)

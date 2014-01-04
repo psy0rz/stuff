@@ -8,7 +8,8 @@
 struct Config
 {
   uint16_t node_id;
-  word ra_unlock_time; //time to unlock door in seconds, after scanning a tag
+  word ra_unlock_time; //time to unlock in seconds, after scanning a tag
+  byte lock_pwm;    //duty cycle for the electronic coil lock
 } config;
 
 

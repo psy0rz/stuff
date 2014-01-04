@@ -4,9 +4,9 @@ ino build -m atmega328 || exit 1
 
 echo "######### PUSH RESET #######" 
 if [ "$1" ]; then
-	ino upload -p $1 -m atmega328 &&  ino serial -p $1 -- --omap crlf --echo
+	ino upload -p $1 -m atmega328 &&  ino serial -p $1 -- --omap crlf --echo --baud 115200
 else
-	ino upload -m atmega328 &&  ino serial -- --omap crlf --echo
+	ino upload -m atmega328 &&  ino serial -- --omap crlf --echo --baud 115200
 fi
 
 
