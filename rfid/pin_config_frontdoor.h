@@ -20,13 +20,13 @@ led pin         D4
 */
 
 //chip select for RF24 SPI
-#define CS_RF24_PIN 10
+#define CS_RF24_PIN 8
 
 //chip select MFRC522 SPI
 #define CS_MFRC522_PIN 8
 
  //reset pin for all SPI devices
-#define RST_PIN 6
+#define RST_PIN 10
 
 #define RFID_LED_PIN 4             //feedback led
 
@@ -37,7 +37,7 @@ led pin         D4
 #define RFID_LOCK_DUTY_TOTAL   10000  //total time of pwm duty cycle 
 //the pwm value is stored in config.lock_pwm
 
-#define RFID_MANUAL_PIN 7          //manual open by switch pin
+#define RFID_MANUAL_PIN 6          //manual open by switch pin
 //#define RFID_125KHZ_PIN 5 //rx pin for 125khz module
 
 

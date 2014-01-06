@@ -105,9 +105,11 @@ void loop()
   ra.loop();
 
   //manual opening of door
-  if (digitalRead(RFID_MANUAL_PIN)==RFID_MANUAL_LEVEL)
+  static byte manual_last=0;
+  if (digitalRead(RFID_MANUAL_PIN)!=manual_last)
   {
     ra.change_state(Ra::state_unlocked, config.ra_unlock_time);
+    manual_last=digitalRead(RFID_MANUAL_PIN);
   }
 
   switch(ra.get_state()) 
