@@ -3,434 +3,135 @@
  * Released under GPL
  * 
  * Using basic RDM630 reader: http://dx.com/p/125k-rfid-card-reader-module-rdm630-series-non-contact-rf-id-card-module-for-arduino-green-red-206725
+ *
+ * Not anymore, now using AT125 http://dx.com/p/125k-rfid-card-reader-module-non-contact-rf-id-card-module-for-arduino-green-236289
+ *
+ * Using NRF24 modules for communication.
+ *
+ * Look in pin_config for pinouts
  * 
- * Doesnt require interrupts, so should work with softserial as well.
+ * API command input
+ * node.id 0XXX         set rf24Network node id. (and restarts)
+ * rfid.set_adm XXXX    reset admin tag to this value. responds with rfid.adm_set to master
+ * rfid.set_clr XXXX    reset admin tag to this value. responds with rfid.clr_set to master
+ * rfid.set_ut X        set unlock time, after scanning a tag
+ * rfid.unlock X        unlock for X seconds
+ * rfid.lock            lock 
+ * lock.set_pwm         lock pwm value
+ 
+ * API events output, send to master:
+ * node.boot  XXX       Node has (re)-booted. (prints bytes free)
+ * node.ping            Registering and monitoring of node/network online status
+ * rfid.ok XXXXX        Scanned known normal tag
+ * rfid.nok XXXXX       Scanned unknown tag
+ * rfid.adm   XXXXX     Scanned admin tag (index 0), next to be scanned will be added.
+ * rfid.clr   XXXXX     Scanned clear all tag (index 1). clears all normal tags 
+ * rfid.add XXXX        Added XXX to db
+ * rfid.del XXXX        Deleted XXX from db
+ * rfid.msg XXX         Messages and debugging
  * 
- * Serial API output:
- * rfid_raw XXXXX     Raw received rfid text-data (including checksum)
- * rfid_ok XXXXX      Scanned known normal tag
- * rfid_nok XXXXX     Scanned unknown tag
- * rfid_admin XXXXX   Scanned admin tag (index 0), next to be scanned will be added.
- * rfid_clear XXXXX   Scanned clear all tag (index 1). clears all normal tags 
- * rfid_add XXXX      Added XXX to db
- * rfid_del XXXX      Deleted XXX from db
- * rfid_ack           Acknowledgement of serial api input commands below
- * 
- * Serial API input:
- * rfid_admin XXXX    reset admin tag to this value
- * rfid_clear XXXX    reset clear tag to this value
 */
 
-//#include <LiquidCrystal.h>
-#include <SoftwareSerial.h>
+
 #include <EEPROM.h>
 
-//rfid config
-SoftwareSerial rfid(2,3); 	//rfid reader RX pin
-#define RFID_LEN 5  		//rfid id length in bytes
-#define RFID_IDS 100 		//number of ids to store in eeprom
-#define RFID_LED 11             //feedback led
-#define RFID_LOCK 9            //lock output
-#define RFID_MANUAL 10          //manual open by switch pin
+#include "pin_config.h"
+#include "messaging.h"
+#include "eeprom_config.h"
+#include "utils.h"
+#include "ra.h"
 
-
-//init
-#define RFID_STR_LEN (RFID_LEN*2)+2+1
-char rfid_buf[RFID_STR_LEN]; //rfid read buffer (we get them in ascii hex strings, so we need twice the space)
-char rfid_pos=0;
-
-
-void setup() {                 
-
-  //rfid reader
-  rfid.begin(9600);  
-  rfid_pos=0;
-  rfid_buf[(RFID_LEN*2)+1]=0;
- 
-  
-  pinMode(RFID_LED, OUTPUT);     
-  pinMode(RFID_LOCK, OUTPUT);
-  pinMode(RFID_MANUAL, INPUT_PULLUP);
-  
-  
-  
-  //serial output
-  Serial.begin(9600);
-  Serial.println(F("rfid locker v1.0 booted"));
-
- 
-  
-}
-
-//print rfid status message and id to serial
-void rfid_print_status(const __FlashStringHelper *status, unsigned char id[])
+//called when receiving an event that was received via network or serial 
+void Msg::handle(uint16_t from, char * event,  char * par)
 {
-    Serial.print(status);
-    Serial.print(" ");
-    char buf[3];
-    for (int i=0; i< RFID_LEN; i++)
-    {
-      sprintf(buf, "%02hhX", id[i]);
-      buf[2]=0;
-      Serial.print(buf);
-    }
-    Serial.println();
-}
+  //when debugging parsing issues
+  // Serial.println("from: ");
+  // Serial.println(from);
+  // Serial.println("event: ");
+  // Serial.println(event);
+  // Serial.println("par: ");
+  // Serial.println(par);
 
-
-//stores id at specified nr in eeprom
-void rfid_eeprom_put(int index, unsigned char id[])
-{
-  int eeprom_offset=index*RFID_LEN;
-  for (int i=0; i< RFID_LEN; i++)
+  if (ra.handle(from,event,par))
   {
-    EEPROM.write(i+eeprom_offset, id[i]);
-  }  
-}
-
-//get id at specified index from eeprom
-void rfid_eeprom_get(int index, unsigned char id[])
-{
-  int eeprom_offset=index*RFID_LEN;
-  for (int i=0; i< RFID_LEN; i++)
-  {
-    id[i]=EEPROM.read(i+eeprom_offset);
-  }  
-}
-
-
-//checks if id is zero (e.g. empty/clear)
-bool rfid_is_zero(unsigned char id[])
-{
-  for (int i=0; i< RFID_LEN; i++)
-    if (id[i]!=0)
-      return(false);
-    
-  return(true);
-}
-
-//clears id to zero
-void rfid_zero(unsigned char id[])
-{
-  for (int i=0; i< RFID_LEN; i++)
-    id[i]=0;
-}
-
-
-//compares 2 ids
-bool rfid_match(unsigned char ida[], unsigned char idb[])
-{
-  for (int i=0; i< RFID_LEN; i++)
-    if (ida[i]!=idb[i])
-      return(false);
-    
-  return(true);
-}
-
-//copy id
-void rfid_copy(unsigned char dst[], unsigned char src[])
-{
-  memcpy(dst, src, RFID_LEN);
-}
-
-
-//find key in eeprom and return id.
-//returns -1 if nonexisting
-int rfid_find(unsigned char id[])
-{
-  unsigned char buf[RFID_LEN];
-
-  for (int i=0; i<RFID_IDS; i++)
-  {
-    rfid_eeprom_get(i, buf);
-    if (rfid_match(buf, id))
-    {
-      return(i);
-    }
-  }
-  return(-1);
-}
-
-
-
-//state machine that checks what to do with a scanned tag
-typedef enum {
-  NORMAL,      //normal base state
-  ADD //next scanned tag will be added as normal tag
-}  rfid_states;
-
-static rfid_states state=NORMAL;
-unsigned long rfid_unlocked=0; //time the door was unlocked. 0 means door is locked
-unsigned long last_time;
-unsigned char last_id[RFID_LEN];
-
-void rfid_check(unsigned char check_id[])
-{
-
-
-  //ignore zero ids
-  if (rfid_is_zero(check_id))
     return;
-  
-  last_time=millis();
-  
-  //ignore repeated ids
-  if (rfid_match(check_id, last_id))
+  }
+
+  if (strcmp_P(event, PSTR("lock.set_pwm"))==0)
+  {
+    config.lock_pwm=atoi(par);
+    config_update();
     return;
-  rfid_copy(last_id, check_id);
-  
-  //find out which key matches
-  int id_index=rfid_find(check_id);
-  
-  if (state==ADD)
-  {
-    if (id_index==-1) //key is still unkown
-    {
-      //find a zero-key spot
-      unsigned char id[RFID_LEN];
-      rfid_zero(id);
-      id_index=rfid_find(id);
-      if (id_index!=-1)
-      {
-        //store it
-        rfid_eeprom_put(id_index, check_id);
-        rfid_print_status(F("rfid_add"), check_id);
-      }
-      state=NORMAL;
-    }
   }
-  else if (state==NORMAL)
-  {
-    if (id_index==-1) //unknown
-    {
-      rfid_print_status(F("rfid_nok"), check_id);
-    }
-    else if (id_index==0) //admin match
-    {
-      //change to add-state
-      rfid_print_status(F("rfid_admin"), check_id);
-      state=ADD; 
-    }
-    else if (id_index==1) //clear all match
-    {
-      rfid_print_status(F("rfid_clear"), check_id);
-      //delete all nonzero normal keys
-      for (int i=2; i<RFID_IDS; i++)
-      {
-        unsigned char id[RFID_LEN];
-        rfid_eeprom_get(i, id);
-        if (!rfid_is_zero(id))
-        {
-          rfid_print_status(F("rfid_del"), id);
-          rfid_zero(id);
-          rfid_eeprom_put(i, id);
-        }
-      }
-    }
-    else //normal match
-    {
-      rfid_print_status(F("rfid_ok"), check_id);
-      if (rfid_unlocked)
-        rfid_unlocked=0;
-      else
-        rfid_unlocked=millis();
-    }
-  }
+  
+  // if (strcmp_P(event, PSTR("some.event"))==0)
+  // {
+  //   ...do stuff
+  //   return;
+  // }
+
+
 }
 
-//reset and clear global rfid_buf buffer (for security)
-void rfid_reset_buf()
+
+void setup() 
 {
-  rfid_pos=0;
-  for (int i=0; i< RFID_STR_LEN; i++)
-    rfid_buf[i]=0;
+  config_read();
+
+  Serial.begin(115200);
+  msg.begin();
+  ra.begin();
+
+  //pin 9 and 10 different pwm freq.  122.5hz
+  TCCR1B = TCCR1B & 0b11111000 | 4;
+
+  pinMode(RFID_LED_PIN, OUTPUT);     
+  pinMode(RFID_LOCK_PIN, OUTPUT);
+  pinMode(RFID_MANUAL_PIN, INPUT_PULLUP);
+
+  
 }
 
-//call this periodicly
-void rfid_loop()
+
+
+
+void loop()
 {
-  static bool led=true;
-  static unsigned long led_time=0;
   
-  
+  //send/receive network and serial messages
+  msg.loop(); 
+
+  //handle rfid scans
+  ra.loop();
+
   //manual opening of door
-  if (!digitalRead(RFID_MANUAL))
-  
+  if (digitalRead(RFID_MANUAL_PIN)==RFID_MANUAL_LEVEL)
   {
-    rfid_unlocked=millis();
-  }
-  
-
-  //after a few seconds of no data forget everything and reset to normal state
-  if (millis()-last_time > 1000)
-  {
-    state=NORMAL;
-    rfid_zero(last_id);
+    ra.change_state(Ra::state_unlocked, config.ra_unlock_time);
   }
 
-  if (state==ADD)
+  switch(ra.get_state()) 
   {
-    //show a "waiting for input" pattern
-    if (millis()-led_time > 100)
-    {
-      led=!led;
-      digitalWrite(RFID_LED, led);
-      led_time=millis();
-    }
+
+    case Ra::state_add:
+      digitalWrite(RFID_LED_PIN, duty_cycle(100,200));
+      break;
+
+    case Ra::state_locked:
+      //lock powersaving: only use short pulses to power the lock, and then fallback to pwm mode.
+      if (duty_cycle(RFID_LOCK_DUTY_ON, RFID_LOCK_DUTY_TOTAL) || (millis()-ra.state_started < 1000) )
+        analogWrite(RFID_LOCK_PIN, 255);
+      else
+        analogWrite(RFID_LOCK_PIN, config.lock_pwm);
+
+      digitalWrite(RFID_LED_PIN, duty_cycle(1900,2000));
+      break;
+
+    case Ra::state_unlocked:
+      analogWrite(RFID_LOCK_PIN, 0);
+      digitalWrite(RFID_LED_PIN, duty_cycle(100,2000));
+      break;
   }
-  else if (state==NORMAL)
-  {
-    //unlocked
-    if (rfid_unlocked)
-    {
-      digitalWrite(RFID_LOCK, LOW); 
-      if (millis()-rfid_unlocked > 10000)
-      {
-          rfid_unlocked=0;
-      }
-      
-      //heartbeat (mostly off)
-      if (led && millis()-led_time > 50)
-      {
-        led=0;
-        digitalWrite(RFID_LED, led);
-        led_time=millis();
-      }
-      if (!led && millis()-led_time > 2000)
-      {
-        led=1;
-        digitalWrite(RFID_LED, led);
-        led_time=millis();
-      }
-
-    }
-    //locked
-    else
-    {
-      digitalWrite(RFID_LOCK, HIGH); 
-//       delay(100);
-//       analogWrite(RFID_LOCK, 64);
-//       delay(1000);
-      
-      //glowing heartbeat (mostly on)
-      if (led && millis()-led_time > 1000)
-      {
-        led=0;
-        digitalWrite(RFID_LED, led);
-        led_time=millis();
-      }
-      if (!led && millis()-led_time > 50)
-      {
-        led=1;
-        digitalWrite(RFID_LED, led);
-        led_time=millis();
-      }
-    }
-  }
-  
-
-
-
-  if (rfid.available())
-  {
-    char c=rfid.read();
-    if (c==2) //start of data
-    {
-      rfid_reset_buf();
-    }
-    else if (c==3) //end of data
-    {    
-      Serial.print(F("rfid_raw "));
-      Serial.println(rfid_buf);
-
-      //convert ascii hex to bytes and generate checksum
-      unsigned char checksum=0;
-      for (int i=0; i< RFID_LEN+1; i++)
-      {
-        sscanf(&rfid_buf[i*2], "%2hhx", &rfid_buf[i]); 
-        checksum=checksum^rfid_buf[i];
-      }
-    
-      if (checksum==0)
-      {
-        //scanned data is ok, now check what to do with it
-        digitalWrite(RFID_LED, !led);
-        delay(10);
-        digitalWrite(RFID_LED, led);
-        rfid_check((unsigned char *)rfid_buf);
-      }
-      
-      rfid_reset_buf();
-    }
-    else //data
-    {
-      if (rfid_pos<RFID_STR_LEN)
-      {
-        rfid_buf[rfid_pos]=c;
-        rfid_pos++;       
-      }
-    }
-  }
-  
-  //TODO: cleanup
-  //serial stuff to add the admin and clear-id's for the first time.
-  if (Serial.available())
-  {
-    int r=Serial.readBytesUntil(' ', rfid_buf, RFID_STR_LEN-1);
-      
-    if (r==0)
-      return;
-    
-    rfid_buf[r]=0;
-    
-    if (strcmp(rfid_buf, ("rfid_admin"))==0)
-    {
-      //read hex id
-      int r=Serial.readBytesUntil('\n', rfid_buf, RFID_STR_LEN-1);
-      
-      if (r==0)
-        return;
-      
-      //convert ascii hex to bytes
-      for (int i=0; i< RFID_LEN; i++)
-        sscanf(&rfid_buf[i*2], "%2hhx", &rfid_buf[i]); 
-      
-      //store as admin
-      rfid_eeprom_put(0,(unsigned char*)rfid_buf);
-      rfid_print_status(F("rfid_ack"), (unsigned char*)rfid_buf);
-      
-    }
-    else if (strcmp(rfid_buf, ("rfid_clear"))==0)
-    {
-      //read hex id
-      int r=Serial.readBytesUntil('\n', rfid_buf, RFID_STR_LEN-1);
-
-      //convert ascii hex to bytes
-      for (int i=0; i< RFID_LEN; i++)
-        sscanf(&rfid_buf[i*2], "%2hhx", &rfid_buf[i]); 
-
-      if (r==0)
-        return;
-      
-      //store as clear id
-      rfid_eeprom_put(1,(unsigned char*)rfid_buf);
-      rfid_print_status(F("rfid_ack"), (unsigned char*)rfid_buf);
-    }
-
-
-  }
-
-  
-}
-
-
-void loop() {
-  rfid_loop();
 
 }
-
-
-
-
-
 
