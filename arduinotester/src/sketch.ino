@@ -11,6 +11,10 @@ const word analog_pullup_value=58;
 const word analog_open_value=0; // high impedance
 const word analog_high_value=1012;
 const word analog_low_value=23;
+const word eeprom_size=1024; //make 0 to not format/test eeprom
+
+
+#include <EEPROM.h>
 
 int failed=0;
 
@@ -189,10 +193,50 @@ void loop()
 		Serial.println();
 	}
 
-	if (failed)
-		Serial.println("*FAILED*");
-	else
-		Serial.println("*PASSED*");
 
-    delay(60000);
+	if (!failed)
+	{
+		Serial.println("Formatting/testing EEPROM:");
+		for (int a=0; a< eeprom_size; a++)
+		{
+			EEPROM.write(a,0);
+			if (EEPROM.read(a)!=0)
+			{
+				Serial.print("failed to 0 address:");
+				Serial.print(a);
+				failed++;
+			}
+			EEPROM.write(a,0xff);
+			if (EEPROM.read(a)!=0xff)
+			{
+				Serial.print("failed to 0xff address:");
+				Serial.print(a);
+				failed++;
+			}
+		}
+	}
+
+	pinMode(13,OUTPUT);
+	if (failed)
+	{
+		Serial.println("*FAILED*");
+		while(1)
+		{
+			digitalWrite(13,HIGH);
+			delay(100);
+			digitalWrite(13,LOW);
+			delay(100);
+		}	
+	}
+	else
+	{
+		Serial.println("*PASSED*");
+		while(1)
+		{
+			digitalWrite(13,HIGH);
+			delay(100);
+			digitalWrite(13,LOW);
+			delay(900);
+		}	
+	}
 }
