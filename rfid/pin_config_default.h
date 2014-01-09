@@ -1,6 +1,7 @@
 #ifndef pin_config_h
 #define pin_config_h
 
+<<<<<<< Updated upstream
 ////////////////////////////// Pin outs
 //                          //  
 //arduino pin               // description     MFRC522 rfid pin  RF24 pin                      
@@ -16,6 +17,21 @@
 #define RFID_LOCK_PIN 9     // lock pin        
 #define RFID_MANUAL_PIN 7   // manual pin      
 #define RFID_LED_PIN 4      // led pin         
+=======
+description     uno pin    MFRC522 rfid pin  RF24 pin                      
+GND             GND        gnd(orange)       1 (gnd,brown)                2
+3v3             VCC        3.3v(brown)       2 (vcc,red) 3(ce,orange)     1 4
+SPI MOSI        D11        MOSI(blue)        6 (mosi,blue)				  5
+SPI MISO        D12        MISO(green)       7 (miso,violet)              8
+SPI SCK         D13        SCK(violet)       5 (sck,green)                6
+CS RF24         D10                          4 (csn,yellow)               3         
+CS MFRC522      D8         SDA(grey)
+RST             D6         RST(red)
+IRQ             D2                           8 (irq,gray)				  7	
+lock pin        D9
+manual pin      D7
+led pin         D4
+>>>>>>> Stashed changes
 
 
 

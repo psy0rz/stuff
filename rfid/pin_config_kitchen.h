@@ -11,9 +11,9 @@ SPI MISO        D12        MISO(green)       7 (miso,violet)
 SPI SCK         D13        SCK(violet)       5 (sck,green)
 CS RF24         D10                          4 (csn,yellow)
 CS MFRC522      D8   
-RST             D9         RST(red)
+RST             D6         RST(red)
 IRQ             D2                           8 (irq,gray)
-lock pin        D6
+lock pin        D9
 manual pin      D7
 led pin         D4
 

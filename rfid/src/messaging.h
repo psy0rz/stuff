@@ -39,14 +39,14 @@ class Msg
 
   }
 
-  //send a raw message-line to the master (and do serial echoing and error checking)
-  bool send_line(const char * msg_buf)
+  //send a raw message-line to a node (and do serial echoing and error checking)
+  bool send_line(const char * msg_buf, uint16_t to_node=MASTER_NODE)
   {
-      RF24NetworkHeader header(MASTER_NODE, 'l');
+      RF24NetworkHeader header(to_node, 'l');
 
-      //if we're not the master, print sended messages on serial as well
+      //if we're not the target, print sended messages on serial as well
       //this way we can use the serial api also when there is no network connection.
-      if (config.node_id!=MASTER_NODE)
+      if (config.node_id!=to_node)
       {
         Serial.print('0');
         Serial.print(config.node_id,OCT);
@@ -152,17 +152,16 @@ class Msg
     //serial message available?
     if (Serial.available())
     {
-      RF24NetworkHeader header;
-      
+
       //to node?
+      uint16_t to_node;
       Serial.readBytesUntil(' ', msg_buf, sizeof(msg_buf));
-      sscanf(msg_buf, "%u", &header.to_node);
-      header.type='l';
+      to_node=atoi(msg_buf);
 
       //the rest will become one 0 terminated string:
       byte len=Serial.readBytesUntil('\n', msg_buf, sizeof(msg_buf)-1);
       msg_buf[len]=0;
-      network.write(header,&msg_buf,len+1);
+      send_line(msg_buf, to_node);
     }
 
     //ping master node
