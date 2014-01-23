@@ -1,0 +1,48 @@
+#!/bin/bash
+
+set -e
+
+JOBNAME=$1
+INTERVAL=$2
+EXITCODE=$3
+
+if [ "$EXITCODE" == "" ]; then
+	echo "Usage: $0 <jobname> <interval> <exitcode>"
+	echo "Interval is used to generate alerts if the job is not run for a specific time. (with margins)"
+	echo " none    : dont check interval"
+	echo " hourly  : job should report every hour"
+	echo " daily   : job should report every week"
+	echo " montly  : job should report every month"
+	exit 1
+fi
+
+[ "$INTERVAL" == "none" ] && INTERVAL=0
+[ "$INTERVAL" == "hourly" ] && INTERVAL=60
+[ "$INTERVAL" == "weekly" ] && INTERVAL=10080
+[ "$INTERVAL" == "montly" ] && INTERVAL=44640
+
+JOBDIR=/etc/zabbix/zabbix.jobs
+
+#add job to job-database
+echo "$INTERVAL" > $JOBDIR/$JOBNAME 
+
+UPDATES=""
+
+#gererate a discovery rule for all jobs in db:
+cd $JOBDIR 
+for JOB in *; do 
+	INTERVAL=`cat $JOB`
+	if [ "$JSON" != "" ]; then
+		JSON=$JSON', '
+	fi
+	JSON=$JSON'{ "{#JOBNAME}": "'$JOB'", "{#JOBINTERVAL}": "'$INTERVAL'" } '
+done
+UPDATES=$UPDATES'- job.discovery { "data": [ '$JSON' ] }\n'
+
+#add exitcode of current job
+UPDATES=$UPDATES"- job.exit[$JOBNAME] $EXITCODE\n"
+
+
+echo "Sending updates to zabbix:"
+echo -en "$UPDATES"
+echo -en "$UPDATES" | zabbix_sender -vv  -c /etc/zabbix/zabbix_agentd.conf -i -
