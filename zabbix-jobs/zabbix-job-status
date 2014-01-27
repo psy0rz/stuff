@@ -10,7 +10,8 @@ if [ "$PAR_EXITCODE" == "" ]; then
 	echo "Usage: $0 <jobname> <interval> <exitcode>"
 	echo "Interval is used to generate alerts if the job is not run for a specific time. (with margins)"
 	echo " hourly  : job should report every hour"
-	echo " daily   : job should report every week"
+	echo " daily   : job should report every day"
+	echo " weekly  : job should report every week"
 	echo " montly  : job should report every month"
 	echo " manual  : job is run manually, not at a specific interval."
 	exit 1
