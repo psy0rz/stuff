@@ -1,4 +1,5 @@
 #!/bin/bash
+JOBDIR=/etc/zabbix/zabbix.jobs
 
 set -e
 
@@ -7,17 +8,26 @@ PAR_INTERVAL=$2
 PAR_EXITCODE=$3
 
 if [ "$PAR_EXITCODE" == "" ]; then
-	echo "Usage: $0 <jobname> <interval> <exitcode>"
+	echo "Usage: $0 <jobname> <interval> <exitcode> [ <ignorecode>... ] "
 	echo "Interval is used to generate alerts if the job is not run for a specific time. (with margins)"
 	echo " hourly  : job should report every hour"
 	echo " daily   : job should report every day"
 	echo " weekly  : job should report every week"
 	echo " montly  : job should report every month"
 	echo " manual  : job is run manually, not at a specific interval."
+	echo
+	echo "Specify ignorecodes for exitcodes that you want to 'ignore' and report 0 instead. Usefull for ignoring exit code 24 in rsync jobs for example."
 	exit 1
 fi
 
-JOBDIR=/etc/zabbix/zabbix.jobs
+#ignore certain codes
+shift 3
+for IGNORE in $*; do
+	if [ "$IGNORE" == "$PAR_EXITCODE" ]; then
+		PAR_EXITCODE=0
+		break
+	fi
+done
 
 #add job to job-database
 echo "$PAR_INTERVAL" > $JOBDIR/$PAR_JOBNAME 
