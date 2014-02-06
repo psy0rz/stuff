@@ -1,0 +1,82 @@
+#!/usr/bin/python
+#(C)DatuX 2012 Edwin@datux.nl
+import sys
+import subprocess
+import re
+import json
+import time
+import datetime
+import os
+
+if len(sys.argv)<4:
+	print "Not enough parameters"
+	sys.exit(1)
+
+# Script to send SMS messages from Zabbix
+# $1 is the phone number, $2 is the subject and $3 is the message
+number=sys.argv[1]
+subject=sys.argv[2]
+message=sys.argv[3]
+
+throttle_time=3600
+throttle_maxcount=10
+
+data_file_name="/usr/lib/safesms/"+re.sub("[^0-9]","_",number)+".conf"
+
+data={
+	"starttime":0,
+	"count":0
+	}
+	
+if os.path.exists(data_file_name):
+	dfp=open(data_file_name,'r')
+	data=json.load(dfp)
+
+next_time=(round(throttle_time-(time.time()-data["starttime"])))
+	
+if time.time()-data["starttime"] > throttle_time:
+	print "Resetting sms counter to 0"
+	data["count"]=0
+	data["starttime"]=time.time()
+else:
+	if data["count"] >= throttle_maxcount:
+		print "Message dropped (sended {0} messages in {1} seconds, to number {2} )".format(data["count"], throttle_time, number)
+		print "Next message can be sended in {0:.0f} seconds..".format(next_time)
+		sys.exit(0)
+
+
+data["count"]+=1
+
+#add thorttle warning
+if data["count"] >= throttle_maxcount:
+	sms_text="{0}\\0ASMS {1:.0f} SEC. DISABLED!\\0A{2}".format(subject, next_time, message)
+	print "Last message! Next one can be send in {0} seconds".format(next_time)
+#no throttle warning
+else:
+	sms_text="{0}\\0A{1}".format(subject,message)
+
+#to prevent raceconditions in network outages, FIRST update the file, then call smssend (which may hang long)
+dfp=open(data_file_name,'w')
+json.dump(data, dfp)
+dfp.close()
+
+
+# \0A is a hexadecimal code that gives a CR to your cell phone message
+# See --man smssend-- for more
+#Gatewaynaam	Gateway ID
+#Basic	2
+#Business	4
+#Business+	1
+if subprocess.call([
+	"smssend", "mollie.sms", "USER", "PASS", "FROM", number, sms_text[:160], "1"
+]):
+	sys.exit(1)
+
+#log it
+with open("/usr/lib/safesms/safesms.log", "a") as f:
+     f.write("{0} SMS to {1} message: {2}\n".format(str(datetime.datetime.today()),number,sms_text[:160]))
+
+print "Command completed successfull.. updating SMS counter database"
+
+
+sys.exit(0)
