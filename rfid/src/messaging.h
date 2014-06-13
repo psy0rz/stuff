@@ -44,15 +44,16 @@ class Msg
   {
       RF24NetworkHeader header(to_node, 'l');
 
+      //hoeft niet?
       //if we're not the target, print sended messages on serial as well
       //this way we can use the serial api also when there is no network connection.
-      if (config.node_id!=to_node)
-      {
-        Serial.print('0');
-        Serial.print(config.node_id,OCT);
-        Serial.print(' ');
-        Serial.println(msg_buf);
-      }
+      // if (config.node_id!=to_node)
+      // {
+      //   Serial.print('0');
+      //   Serial.print(config.node_id,OCT);
+      //   Serial.print(' ');
+      //   Serial.println(msg_buf);
+      // }
 
       if (!network.write(header,msg_buf,strlen(msg_buf)+1))
       {
