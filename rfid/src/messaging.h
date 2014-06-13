@@ -157,7 +157,7 @@ class Msg
       //to node?
       uint16_t to_node;
       Serial.readBytesUntil(' ', msg_buf, sizeof(msg_buf));
-      to_node=atoi(msg_buf);
+      sscanf(msg_buf,"%o",&to_node);
 
       //the rest will become one 0 terminated string:
       byte len=Serial.readBytesUntil('\n', msg_buf, sizeof(msg_buf)-1);
