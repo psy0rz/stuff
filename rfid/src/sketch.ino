@@ -121,7 +121,7 @@ void loop()
 
     case Ra::state_locked:
       //lock powersaving: only use short pulses to power the lock, and then fallback to pwm mode.
-      if (duty_cycle(RFID_LOCK_DUTY_ON, RFID_LOCK_DUTY_TOTAL) || (millis()-ra.state_started < 1000) )
+      if (duty_cycle(RFID_LOCK_DUTY_ON, RFID_LOCK_DUTY_TOTAL) || (millis()-ra.state_started < RFID_LOCK_INITIAL) )
         analogWrite(RFID_LOCK_PIN, 255);
       else
         analogWrite(RFID_LOCK_PIN, config.lock_pwm);

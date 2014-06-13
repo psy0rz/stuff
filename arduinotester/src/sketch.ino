@@ -3,6 +3,7 @@
 //we use the internal pullup resistors to do the actual testing.
 
 //note that analog pins also can be digital output pins!
+//note: cant test pin 13 because of the led and resistor.
 const byte output_pins[]={2,3,4,5,6,7,8,9,10,11,12, A0,A1,A2,A3};
 const byte digital_input_pins[]={2,3,4,5,6,7,8,9,10,11,12};
 const byte analog_input_pins[]={A0,A1,A2,A3};

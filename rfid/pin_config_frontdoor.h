@@ -20,6 +20,7 @@
 
 
 //lock powersaving stuff
+#define RFID_LOCK_INITIAL	   120000 //initial full power time (so that you dont have to wait)
 #define RFID_LOCK_DUTY_ON      100    //full on time in ms when locking
 #define RFID_LOCK_DUTY_TOTAL   10000  //total time of pwm duty cycle 
 //the pwm value is stored in config.lock_pwm
