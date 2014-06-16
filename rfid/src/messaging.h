@@ -35,7 +35,7 @@ class Msg
     network.begin(100, config.node_id);
 
     char par[MAX_MSG];
-    sprintf_P(par, PSTR("%i free"), freeMemory());
+    sprintf_P(par, PSTR("v1.1 %i"), freeMemory());
     send(PSTR("node.boot"), par);
 
   }
