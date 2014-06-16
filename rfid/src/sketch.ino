@@ -41,6 +41,8 @@
 #include "utils.h"
 #include "ra.h"
 
+#include "printf.h"
+
 //called when receiving an event that was received via network or serial 
 void Msg::handle(uint16_t from, char * event,  char * par)
 {
@@ -79,11 +81,15 @@ void setup()
   config_read();
 
   Serial.begin(115200);
+  #ifdef SERIAL_DEBUG
+  printf_begin();
+  #endif
+
   msg.begin();
   ra.begin();
 
   //pin 9 and 10 different pwm freq.  122.5hz
-  TCCR1B = TCCR1B & 0b11111000 | 4;
+//  TCCR1B = TCCR1B & 0b11111000 | 4;
 
   pinMode(RFID_LED_PIN, OUTPUT);     
   pinMode(RFID_LOCK_PIN, OUTPUT);

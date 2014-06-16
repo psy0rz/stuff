@@ -23,13 +23,14 @@ class Msg
   RF24 radio;
   RF24Network network;
 
-  Msg() : radio(2, CS_RF24_PIN), network(radio)
+  Msg() : radio(CE_RF24_PIN, CS_RF24_PIN), network(radio)
   {
 
   }
 
   void begin()
   {
+    SPI.begin();
     radio.begin();
     network.begin(100, config.node_id);
 
@@ -64,6 +65,7 @@ class Msg
         Serial.println(msg_buf);
         return(false);
       }
+
       return(true);
 
   }
@@ -120,7 +122,7 @@ class Msg
   void loop()
   {
     char msg_buf[MAX_MSG]; 
-    static unsigned long last_ping;
+    static unsigned long last_ping=-60000;
     //Pump the network regularly
     network.update();
 
@@ -129,12 +131,13 @@ class Msg
     {
       // If so, take a look at it 
       RF24NetworkHeader header;
-      network.peek(header);
+//      network.peek(header);
 
+      network.read(header,msg_buf, sizeof(msg_buf));
 
+      //correct message type? 
       if (header.type=='l')
       {
-        network.read(header,msg_buf, sizeof(msg_buf));
         msg_buf[sizeof(msg_buf)-1]=0; //ensure 0 termination
 
         char * par;
@@ -166,7 +169,7 @@ class Msg
     }
 
     //ping master node
-    if ( millis()-last_ping > 60000)
+    if ( millis()-last_ping >= 60000)
     {
       send(PSTR("node.ping"));
       last_ping=millis();

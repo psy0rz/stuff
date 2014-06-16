@@ -10,17 +10,27 @@
 #include "RF24.h"
 #include "RF24Network.h"
 
+#if defined (ENABLE_SLEEP_MODE)
+	#include <avr/sleep.h>
+	#include <avr/power.h>
+	volatile byte sleep_cycles_remaining;
+#endif
+
 uint16_t RF24NetworkHeader::next_id = 1;
 
 uint64_t pipe_address( uint16_t node, uint8_t pipe );
 bool is_valid_address( uint16_t node );
 
 /******************************************************************/
-
+#if !defined (DUAL_HEAD_RADIO)
 RF24Network::RF24Network( RF24& _radio ): radio(_radio), next_frame(frame_queue)
 {
 }
-
+#else
+RF24Network::RF24Network( RF24& _radio, RF24& _radio1 ): radio(_radio), radio1(_radio1), next_frame(frame_queue)
+{
+}
+#endif
 /******************************************************************/
 
 void RF24Network::begin(uint8_t _channel, uint16_t _node_address )
@@ -30,25 +40,36 @@ void RF24Network::begin(uint8_t _channel, uint16_t _node_address )
 
   node_address = _node_address;
 
-  if ( ! radio.isValid() )
+  if ( ! radio.isValid() ){
     return;
+  }
 
   // Set up the radio the way we want it to look
   radio.setChannel(_channel);
   radio.setDataRate(RF24_1MBPS);
   radio.setCRCLength(RF24_CRC_16);
+  // Use different retry periods to reduce data collisions
+
+  uint8_t retryVar = (node_address % 7) + 5;
+  radio.setRetries(retryVar, 15);
+  txTimeout = retryVar * 17;
+
+#if defined (DUAL_HEAD_RADIO)
+  radio1.setChannel(_channel);
+  radio1.setDataRate(RF24_1MBPS);
+  radio1.setCRCLength(RF24_CRC_16);
+
+#endif
 
   // Setup our address helper cache
   setup_address();
-  
+
   // Open up all listening pipes
   int i = 6;
   while (i--)
     radio.openReadingPipe(i,pipe_address(_node_address,i));
   radio.startListening();
 
-  // Spew debugging state about the radio
-  radio.printDetails();
 }
 
 /******************************************************************/
@@ -60,11 +81,11 @@ void RF24Network::update(void)
   while ( radio.isValid() && radio.available(&pipe_num) )
   {
     // Dump the payloads until we've gotten everything
-    boolean done = false;
-    while (!done)
+
+    while (radio.available())
     {
       // Fetch the payload, and see if this was the last one.
-      done = radio.read( frame_buffer, sizeof(frame_buffer) );
+      radio.read( frame_buffer, sizeof(frame_buffer) );
 
       // Read the beginning of the frame as the header
       const RF24NetworkHeader& header = * reinterpret_cast<RF24NetworkHeader*>(frame_buffer);
@@ -73,17 +94,18 @@ void RF24Network::update(void)
       IF_SERIAL_DEBUG(const uint16_t* i = reinterpret_cast<const uint16_t*>(frame_buffer + sizeof(RF24NetworkHeader));printf_P(PSTR("%lu: NET message %04x\n\r"),millis(),*i));
 
       // Throw it away if it's not a valid address
-      if ( !is_valid_address(header.to_node) )
-	continue;
+      if ( !is_valid_address(header.to_node) ){
+		continue;
+	  }
 
       // Is this for us?
-      if ( header.to_node == node_address )
+      if ( header.to_node == node_address ){
 	// Add it to the buffer of frames for us
-	enqueue();
-      else
-	// Relay it
-	write(header.to_node);
-
+		enqueue();
+	  }else{
+		// Relay it
+ 		write(header.to_node);
+	  }
       // NOT NEEDED anymore.  Now all reading pipes are open to start.
 #if 0
       // If this was for us, from one of our children, but on our listening
@@ -108,14 +130,14 @@ void RF24Network::update(void)
 bool RF24Network::enqueue(void)
 {
   bool result = false;
-  
+
   IF_SERIAL_DEBUG(printf_P(PSTR("%lu: NET Enqueue @%x "),millis(),next_frame-frame_queue));
 
   // Copy the current frame into the frame queue
   if ( next_frame < frame_queue + sizeof(frame_queue) )
   {
     memcpy(next_frame,frame_buffer, frame_size );
-    next_frame += frame_size; 
+    next_frame += frame_size;
 
     result = true;
     IF_SERIAL_DEBUG(printf_P(PSTR("ok\n\r")));
@@ -165,12 +187,12 @@ size_t RF24Network::read(RF24NetworkHeader& header,void* message, size_t maxlen)
 
   if ( available() )
   {
-    // Move the pointer back one in the queue 
+    // Move the pointer back one in the queue
     next_frame -= frame_size;
     uint8_t* frame = next_frame;
-     
+
     memcpy(&header,frame,sizeof(RF24NetworkHeader));
-   
+
     if (maxlen > 0)
     {
       // How much buffer size should we actually copy?
@@ -219,7 +241,7 @@ bool RF24Network::write(RF24NetworkHeader& header,const void* message, size_t le
 bool RF24Network::write(uint16_t to_node)
 {
   bool ok = false;
-  
+
   // Throw it away if it's not a valid address
   if ( !is_valid_address(to_node) )
     return false;
@@ -231,7 +253,7 @@ bool RF24Network::write(uint16_t to_node)
   uint16_t send_node = parent_node;
   // On which pipe
   uint8_t send_pipe = parent_pipe;
-  
+
   // If the node is a direct child,
   if ( is_direct_child(to_node) )
   {
@@ -249,19 +271,15 @@ bool RF24Network::write(uint16_t to_node)
     send_node = direct_child_route_to(to_node);
     send_pipe = 0;
   }
-  
+
   IF_SERIAL_DEBUG(printf_P(PSTR("%lu: MAC Sending to 0%o via 0%o on pipe %x\n\r"),millis(),to_node,send_node,send_pipe));
 
+#if !defined (DUAL_HEAD_RADIO)
   // First, stop listening so we can talk
   radio.stopListening();
+#endif
 
-  // Put the frame on the pipe
-  int retries = 3;
-  do
-  {
-    ok = write_to_pipe( send_node, send_pipe );
-  }
-  while (!ok && retries--);
+  ok = write_to_pipe( send_node, send_pipe );
 
       // NOT NEEDED anymore.  Now all reading pipes are open to start.
 #if 0
@@ -273,8 +291,10 @@ bool RF24Network::write(uint16_t to_node)
     ok = write_to_pipe( parent_node, 0 );
 #endif
 
+#if !defined (DUAL_HEAD_RADIO)
   // Now, continue listening
   radio.startListening();
+#endif
 
   return ok;
 }
@@ -284,20 +304,21 @@ bool RF24Network::write(uint16_t to_node)
 bool RF24Network::write_to_pipe( uint16_t node, uint8_t pipe )
 {
   bool ok = false;
-  
+
   uint64_t out_pipe = pipe_address( node, pipe );
- 
-  // Open the correct pipe for writing.  
+
+#if !defined (DUAL_HEAD_RADIO)
+ // Open the correct pipe for writing.
   radio.openWritingPipe(out_pipe);
 
-  // Retry a few times
-  short attempts = 5;
-  do
-  {
-    ok = radio.write( frame_buffer, frame_size );
-  
-  }
-  while ( !ok && --attempts );
+  radio.writeFast(frame_buffer, frame_size);
+  ok = radio.txStandBy(txTimeout);
+#else
+  radio1.openWritingPipe(out_pipe);
+  radio1.writeFast(frame_buffer, frame_size);
+  ok = radio1.txStandBy(txTimeout);
+
+#endif
 
   IF_SERIAL_DEBUG(printf_P(PSTR("%lu: MAC Sent on %lx %S\n\r"),millis(),(uint32_t)out_pipe,ok?PSTR("ok"):PSTR("failed")));
 
@@ -309,7 +330,8 @@ bool RF24Network::write_to_pipe( uint16_t node, uint8_t pipe )
 const char* RF24NetworkHeader::toString(void) const
 {
   static char buffer[45];
-  snprintf_P(buffer,sizeof(buffer),PSTR("id %04x from 0%o to 0%o type %c"),id,from_node,to_node,type);
+  //snprintf_P(buffer,sizeof(buffer),PSTR("id %04x from 0%o to 0%o type %c"),id,from_node,to_node,type);
+  sprintf_P(buffer,PSTR("id %04x from 0%o to 0%o type %c"),id,from_node,to_node,type);
   return buffer;
 }
 
@@ -351,7 +373,7 @@ void RF24Network::setup_address(void)
   uint16_t node_mask_check = 0xFFFF;
   while ( node_address & node_mask_check )
     node_mask_check <<= 3;
-  
+
   node_mask = ~ node_mask_check;
 
   // parent mask is the next level down
@@ -391,7 +413,7 @@ uint8_t RF24Network::pipe_to_descendant( uint16_t node )
 {
   uint16_t i = node;
   uint16_t m = node_mask;
-  
+
   while (m)
   {
     i >>= 3;
@@ -433,12 +455,12 @@ uint64_t pipe_address( uint16_t node, uint8_t pipe )
 
   out[0] = pipe_segment[pipe];
 
-  uint8_t w; 
+  uint8_t w;
   short i = 4;
   short shift = 12;
   while(i--)
   {
-    w = ( node >> shift ) & 0xF ; 
+    w = ( node >> shift ) & 0xF ;
     w |= ~w << 4;
     out[i+1] = w;
 
@@ -450,4 +472,64 @@ uint64_t pipe_address( uint16_t node, uint8_t pipe )
   return result;
 }
 
-// vim:ai:cin:sts=2 sw=2 ft=cpp
+
+/************************ Sleep Mode ******************************************/
+
+
+#if defined ENABLE_SLEEP_MODE
+
+#if !defined( __AVR_ATtiny85__ ) && !defined( __AVR_ATtiny84__) && !defined(__arm__)
+
+RF24NetworkHeader sleepHeader(/*to node*/ 00, /*type*/ 'S' /*Sleep*/);
+
+//bool awoke = 0;
+
+void wakeUp(){
+  //detachInterrupt(0);
+  sleep_disable();
+  sleep_cycles_remaining = 0;
+  //awoke = 1;
+}
+
+ISR(WDT_vect){
+  --sleep_cycles_remaining;
+
+}
+
+
+void RF24Network::sleepNode( unsigned int cycles, int interruptPin ){
+
+
+  sleep_cycles_remaining = cycles;
+  set_sleep_mode(SLEEP_MODE_PWR_DOWN); // sleep mode is set here
+  sleep_enable();
+  if(interruptPin != 255){
+  	attachInterrupt(interruptPin,wakeUp, LOW);
+  }
+  WDTCSR |= _BV(WDIE);
+  while(sleep_cycles_remaining){
+	//uint8_t junk = 23;
+    //write(&junk,1);
+    sleep_mode();                        // System sleeps here
+  }                                     // The WDT_vect interrupt wakes the MCU from here
+  sleep_disable();                     // System continues execution here when watchdog timed out
+  //if(awoke){ update(); awoke = 0; }
+  detachInterrupt(interruptPin);
+  WDTCSR &= ~_BV(WDIE);
+  //radio.startListening();
+
+}
+
+void RF24Network::setup_watchdog(uint8_t prescalar){
+
+  uint8_t wdtcsr = prescalar & 7;
+  if ( prescalar & 8 )
+    wdtcsr |= _BV(WDP3);
+  MCUSR &= ~_BV(WDRF);                      // Clear the WD System Reset Flag
+  WDTCSR = _BV(WDCE) | _BV(WDE);            // Write the WD Change enable bit to enable changing the prescaler and enable system reset
+  WDTCSR = _BV(WDCE) | wdtcsr | _BV(WDIE);  // Write the prescalar bits (how long to sleep, enable the interrupt to wake the MCU
+}
+
+
+#endif // not ATTiny
+#endif // Enable sleep mode

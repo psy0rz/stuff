@@ -5,10 +5,11 @@
 //                          //  
 //arduino pin               // description     MFRC522 rfid pin  RF24 pin                      
 //GND                       // GND             gnd(orange)       1 (gnd,brown)  
-//3v3                       // 3v3             3.3v(brown)       2 (vcc,red) 3(ce,orange)
+//3v3                       // 3v3             3.3v(brown)       2 (vcc,red) 
 //11                        // SPI MOSI        MOSI(blue)        6 (mosi,blue)
 //12                        // SPI MISO        MISO(green)       7 (miso,violet)
 //13                        // SPI SCK         SCK(violet)       5 (sck,green)
+#define CE_RF24_PIN A0      // CE RF24                           3 (ce,orange)
 #define CS_RF24_PIN 10      // CS RF24                           4 (csn,yellow)
 #define CS_MFRC522_PIN 8    // CS MFRC522      SDA(gray)       
 #define RST_PIN 6           // RST             RST(red)
