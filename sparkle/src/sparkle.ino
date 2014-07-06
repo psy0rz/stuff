@@ -1,4 +1,10 @@
 #include <SPI.h>
+#include <EEPROM.h>
+
+#include "../pin_config_default.h"
+#include "messaging.h"
+#include "eeprom_config.h"
+#include "utils.h"
 
 // hardware SPI pins:
 // For "classic" Arduinos (Uno, Duemilanove,
@@ -13,17 +19,17 @@
 
 
 //32/leds/meter version:
-// #define LED_COUNT 160
-// #define COLOR_BYTE0 G
-// #define COLOR_BYTE1 R
-// #define COLOR_BYTE2 B
+#define LED_COUNT 160
+#define COLOR_BYTE0 G
+#define COLOR_BYTE1 R
+#define COLOR_BYTE2 B
 
 //54/leds/meter version:
 //#define LED_COUNT 160
-#define LED_COUNT 160
-#define COLOR_BYTE0 B
-#define COLOR_BYTE1 R
-#define COLOR_BYTE2 G
+// #define LED_COUNT 160
+// #define COLOR_BYTE0 B
+// #define COLOR_BYTE1 R
+// #define COLOR_BYTE2 G
 
 
 //current rgbvalues
@@ -68,9 +74,22 @@ void led_fade_from(word led, byte r, byte g, byte b, char new_speed)
   fade_speed[led]=new_speed;
 }
 
+
+bool check_radio=false;
+void radio_interrupt()
+{
+  check_radio=true;
+}
+
 void setup() {
-  Serial.begin(9600);
-  Serial.print("started\n");
+
+
+  config_read();
+  Serial.begin(115200);
+
+  attachInterrupt(0, radio_interrupt, FALLING);         
+
+  msg.begin();
 
   // Start SPI communication for the LEDstrip
   SPI.begin();
@@ -229,7 +248,14 @@ unsigned long last_micros=0;
 //execute one fade step and limit fps
 void run_step(unsigned long time=1000)
 {
-    //update all the current and wanted values  
+  //use interupts to prevent unnecceary delays and SPI bus data 
+  if (check_radio)
+  {
+    check_radio=false;
+    msg.loop();
+  }
+
+  //update all the current and wanted values  
   for (word led = 0; led < LED_COUNT; led++) {    
     //FIRST send the current values, then do the fades
     SPI.transfer(0x80 | (curr_rgb[led][COLOR_BYTE0]));
@@ -299,6 +325,30 @@ void run_step(unsigned long time=1000)
   last_micros=micros();
 
 }
+
+
+//called when receiving an event that was received via network or serial 
+void Msg::handle(uint16_t from, char * event,  char * par)
+{
+  //when debugging parsing issues
+  // Serial.println("from: ");
+  // Serial.println(from);
+  // Serial.println("event: ");
+  // Serial.println(event);
+  // Serial.println("par: ");
+  // Serial.println(par);
+
+  
+  // if (strcmp_P(event, PSTR("some.event"))==0)
+  // {
+  //   ...do stuff
+  //   return;
+  // }
+
+
+}
+
+
 //////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////
