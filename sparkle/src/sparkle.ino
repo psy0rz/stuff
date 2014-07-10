@@ -103,6 +103,7 @@ void setup() {
   attachInterrupt(0, radio_interrupt, FALLING);         
 
   msg.begin();
+  msg.send(PSTR("led.boot"));
 
   // Start SPI communication for the LEDstrip
   SPI.begin();
@@ -110,6 +111,7 @@ void setup() {
   SPI.setDataMode(SPI_MODE0);
   SPI.setClockDivider(SPI_CLOCK_DIV2);
   SPI.transfer(0); // 'Prime' the SPI bus with initial latch (no wait)
+
 
   //clear all leds, even if there are more than we use:
   for (word led=0; led<20000; led++)
@@ -131,7 +133,7 @@ void do_fire()
 {
    byte led;
 
-  if (random(255-par_speed)==0)
+  if (par_speed>=random(255))
   {
     led=random(LED_COUNT);
     led_fade_to(led, par_col[0][0], par_col[0][1], par_col[0][2], par_fade[0]);
@@ -381,7 +383,7 @@ void Msg::handle(uint16_t from, char * event,  char * par)
       return;
 
     byte colnr=atoi(par);
-    par=strchr(par,' ');
+    par=strchr(par,' ')+1;
 
     if (colnr>2)
       return;
@@ -390,7 +392,7 @@ void Msg::handle(uint16_t from, char * event,  char * par)
     while (par!=NULL && i<3)
     {
       par_col[colnr][i]=atoi(par);
-      par=strchr(par,' ');
+      par=strchr(par,' ')+1;
       i++;
     }
     return;

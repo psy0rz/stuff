@@ -124,6 +124,23 @@ class Msg
   {
     char msg_buf[MAX_MSG]; 
     static unsigned long last_ping=-60000;
+
+    //serial message available?
+    if (Serial.available())
+    {
+
+      //to node?
+      uint16_t to_node;
+      Serial.readBytesUntil(' ', msg_buf, sizeof(msg_buf));
+      sscanf(msg_buf,"%o",&to_node);
+
+      //the rest will become one 0 terminated string:
+      byte len=Serial.readBytesUntil('\n', msg_buf, sizeof(msg_buf)-1);
+      msg_buf[len]=0;
+      send_line(msg_buf, to_node);
+    }
+
+
     //Pump the network regularly
     network.update();
 
@@ -154,20 +171,6 @@ class Msg
       }
     }
 
-    //serial message available?
-    if (Serial.available())
-    {
-
-      //to node?
-      uint16_t to_node;
-      Serial.readBytesUntil(' ', msg_buf, sizeof(msg_buf));
-      sscanf(msg_buf,"%o",&to_node);
-
-      //the rest will become one 0 terminated string:
-      byte len=Serial.readBytesUntil('\n', msg_buf, sizeof(msg_buf)-1);
-      msg_buf[len]=0;
-      send_line(msg_buf, to_node);
-    }
 
     //ping master node
     if ( millis()-last_ping >= 60000)
