@@ -40,8 +40,20 @@ byte want_rgb[LED_COUNT][3];
 char fade_speed[LED_COUNT]; //we use the char just as an 'signed byte' ;)
 
 word fade_step=0;
-word program=0;
+word par_pat=9;
+byte par_col[3][3]={ 
+  { 127,0  ,0 }, //main color
+  { 0  ,127,0 }, //second color
+  { 0  ,0  ,127 } //background color
+};
 
+byte par_fade[3]={ 
+  0, //main fadespeed
+  0, //second fadespeed
+  0//background fadespeed
+};
+
+byte par_speed=127; //"speed" of pattern, sometimes beats per minute, sometimes something else
 
 //sets the led to specified value on next update. 
 void led_set(word led, byte r, byte g, byte b)
@@ -84,6 +96,7 @@ void radio_interrupt()
 void setup() {
 
 
+
   config_read();
   Serial.begin(115200);
 
@@ -118,19 +131,18 @@ void do_fire()
 {
    byte led;
 
-  if (random(5)==0)
+  if (random(255-par_speed)==0)
   {
     led=random(LED_COUNT);
-    led_fade_to(led, 127, 20, 0, -2);
+    led_fade_to(led, par_col[0][0], par_col[0][1], par_col[0][2], par_fade[0]);
 
     led=random(LED_COUNT);
-    led_fade_to(led, 127, 0, 0, -2);
+    led_fade_to(led, par_col[1][0], par_col[1][1], par_col[1][2], par_fade[1]);
   }
 
   //let flames dimm slowly
   led=random(LED_COUNT);
-  led_fade_to(led, 0,0, 0,2);
-
+  led_fade_to(led, par_col[2][0], par_col[2][1], par_col[2][2], par_fade[2]);
 }
 
 
@@ -265,13 +277,14 @@ void run_step(unsigned long time=1000)
     //now do all the fades
     char s=fade_speed[led];
     byte done=0;
-    
-    if (s!=0)
+
+    //127 means: DONE fading    
+    if (s!=127)
     {
-      //change by 1 , every s steps:
-      if (s>0)
+      //change by 1 , every s+1 steps:
+      if (s>=0)
       {
-        if ((fade_step % s) == 0)
+        if ((fade_step % (s+1) ) == 0)
         {
           for (byte color=0; color<3; color++)
           {
@@ -310,7 +323,7 @@ void run_step(unsigned long time=1000)
         }
       }
       if (done==3)
-        fade_speed[led]=0; //done fading, saves performance
+        fade_speed[led]=127; //done fading, saves performance
     }
   }
    
@@ -328,7 +341,6 @@ void run_step(unsigned long time=1000)
 
 
 //called when receiving an event that was received via network or serial 
-char selected_pattern=1;
 void Msg::handle(uint16_t from, char * event,  char * par)
 {
   //when debugging parsing issues
@@ -347,10 +359,62 @@ void Msg::handle(uint16_t from, char * event,  char * par)
       led_fade_to(led, 0,0,0,1);
     }  
 
-
     if (par!=NULL)
-      selected_pattern=atoi(par);
+      par_pat=atoi(par);
+
     return;
+  }
+
+  if (strcmp_P(event, PSTR("led.speed"))==0)
+  {
+    if (par!=NULL)
+      par_speed=atoi(par);
+    return;
+  }
+
+  //adjust color
+  //usually we have 3 color-settings with 3 rgb values each:
+  // led.col <colornr> <rvalue> <gvalue> <bvalue>
+  if (strcmp_P(event, PSTR("led.col"))==0)
+  {
+    if (par==NULL)
+      return;
+
+    byte colnr=atoi(par);
+    par=strchr(par,' ');
+
+    if (colnr>2)
+      return;
+
+    byte i=0;
+    while (par!=NULL && i<3)
+    {
+      par_col[colnr][i]=atoi(par);
+      par=strchr(par,' ');
+      i++;
+    }
+    return;
+  }
+
+  //adjust fade speed
+  //each color has a fade speed
+  //led.fade <colornr> <speed>
+  if (strcmp_P(event, PSTR("led.fade"))==0)
+  {
+    if (par==NULL)
+      return;
+
+    byte colnr=atoi(par);
+    par=strchr(par,' ');
+
+    if (colnr>2)
+      return;
+
+    if (par==NULL)
+      return;
+
+    par_fade[colnr]=atoi(par);
+
   }
   
   // if (strcmp_P(event, PSTR("some.event"))==0)
@@ -367,8 +431,20 @@ void Msg::handle(uint16_t from, char * event,  char * par)
 //////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////
 void loop() {
-  switch(selected_pattern)
+  switch(par_pat)
   {
+
+    //////////////////static
+    case 0:
+    {
+      //fade leds to background color
+      for (word led=0; led<LED_COUNT; led++)
+      {
+        led_fade_to(led, 0,0,0,1);
+      }  
+
+
+    }
     //////////////////regea multi smallones
     case 1:
     {
