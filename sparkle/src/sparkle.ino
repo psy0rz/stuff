@@ -439,13 +439,11 @@ void loop() {
     //////////////////static
     case 0:
     {
-      //fade leds to background color
+      //fade leds to main color
       for (word led=0; led<LED_COUNT; led++)
       {
-        led_fade_to(led, 0,0,0,1);
+        led_fade_to(led, par_col[0][0], par_col[0][1], par_col[0][2], par_fade[0]);
       }  
-
-
     }
     //////////////////regea multi smallones
     case 1:
