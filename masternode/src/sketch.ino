@@ -36,7 +36,7 @@ void setup()
 {
   config_read();
 
-  Serial.begin(115200);
+  Serial.begin(9600);
   #ifdef SERIAL_DEBUG
   printf_begin();
   #endif

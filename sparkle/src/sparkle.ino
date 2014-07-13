@@ -40,9 +40,9 @@ byte want_rgb[LED_COUNT][3];
 char fade_speed[LED_COUNT]; //we use the char just as an 'signed byte' ;)
 
 word fade_step=0;
-word par_pat=9;
+word par_pat=0;
 byte par_col[3][3]={ 
-  { 127,0  ,0 }, //main color
+  { 0,0  ,10 }, //main color
   { 0  ,127,0 }, //second color
   { 0  ,0  ,127 } //background color
 };
@@ -444,6 +444,8 @@ void loop() {
       {
         led_fade_to(led, par_col[0][0], par_col[0][1], par_col[0][2], par_fade[0]);
       }  
+      run_step();
+      break;
     }
     //////////////////regea multi smallones
     case 1:
