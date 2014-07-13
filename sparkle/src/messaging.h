@@ -60,6 +60,7 @@ class Msg
       if (!network.write(header,msg_buf,strlen(msg_buf)+1))
       {
         //this is mostly for debugging:
+        Serial.flush();
         Serial.print('0');
         Serial.print(config.node_id,OCT);
         Serial.print(F(" net.error "));
@@ -96,13 +97,18 @@ class Msg
 
   bool internal_handle(uint16_t from, char * event,  char * par)
   {
-    //echo received messages to host computer
-    Serial.print('0');
-    Serial.print(from,OCT);
-    Serial.print(' ');
-    Serial.print(event);
-    Serial.print(' ');
-    Serial.println(par);
+    //echo received messages to host computer IF we are node 0
+    //(other wise it costs performance)
+    if (config.node_id==0)
+    {
+      Serial.flush(); //make sure all data is gone
+      Serial.print('0');
+      Serial.print(from,OCT);
+      Serial.print(' ');
+      Serial.print(event);
+      Serial.print(' ');
+      Serial.println(par);
+    }
 
     //change node id
     if (strcmp_P(event, PSTR("node.id"))==0)
@@ -169,6 +175,7 @@ class Msg
         if (!internal_handle(header.from_node, msg_buf, par))
           handle(header.from_node, msg_buf, par);
       }
+
     }
 
 
