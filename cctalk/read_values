@@ -1,5 +1,8 @@
 #!/usr/bin/python
 
+#CCtalk coin-reader (C)Edwin eefting -- edwin@datux.nl
+#Based on https://bitbucket.org/schryer/cctalk
+
 from time import sleep
 from cctalk.coin_messenger import CoinMessenger
 from cctalk.tools import make_serial_object
