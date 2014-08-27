@@ -1,5 +1,6 @@
 #!/bin/bash
 JOBDIR=/etc/zabbix/zabbix.jobs
+ZABBIX_CONF=/etc/zabbix/zabbix_agentd.conf
 
 set -e
 
@@ -30,6 +31,7 @@ for IGNORE in $*; do
 done
 
 #add job to job-database
+mkdir -p $JOBDIR &>/dev/null || true
 echo "$PAR_INTERVAL" > $JOBDIR/$PAR_JOBNAME 
 
 UPDATES=""
@@ -63,4 +65,4 @@ UPDATES=$UPDATES"- job.exit_$PAR_INTERVAL[$PAR_JOBNAME] $PAR_EXITCODE\n"
 
 echo "Sending updates to zabbix:"
 echo -en "$UPDATES"
-echo -en "$UPDATES" | zabbix_sender -vv  -c /etc/zabbix/zabbix_agentd.conf -i -
+echo -en "$UPDATES" | zabbix_sender -vv  -c $ZABBIX_CONF -i -
