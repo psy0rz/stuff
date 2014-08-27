@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <zabbix_export>
     <version>2.0</version>
-    <date>2014-01-23T21:36:25Z</date>
+    <date>2014-08-27T09:30:01Z</date>
     <groups>
         <group>
             <name>Templates</name>
@@ -45,7 +45,7 @@
                     <privatekey/>
                     <port/>
                     <filter>:</filter>
-                    <lifetime>30</lifetime>
+                    <lifetime>0</lifetime>
                     <description/>
                     <item_prototypes>
                         <item_prototype>
@@ -90,7 +90,7 @@
                     <trigger_prototypes>
                         <trigger_prototype>
                             <expression>{Template job monitor:job.exit_daily[{#JOBNAME}].last(0)}#0</expression>
-                            <name>Job {#JOBNAME} has exit code {ITEM.LASTVALUE}</name>
+                            <name>Job {#JOBNAME} on {HOSTNAME} has exit code {ITEM.LASTVALUE}</name>
                             <url/>
                             <status>0</status>
                             <priority>3</priority>
@@ -99,7 +99,7 @@
                         </trigger_prototype>
                         <trigger_prototype>
                             <expression>{Template job monitor:job.exit_daily[{#JOBNAME}].nodata(2d)}=1</expression>
-                            <name>Last daily report of {#JOBNAME} too long ago.</name>
+                            <name>Last daily report of {#JOBNAME} on {HOSTNAME} too long ago.</name>
                             <url/>
                             <status>0</status>
                             <priority>3</priority>
@@ -136,7 +136,7 @@
                     <privatekey/>
                     <port/>
                     <filter>:</filter>
-                    <lifetime>30</lifetime>
+                    <lifetime>0</lifetime>
                     <description/>
                     <item_prototypes>
                         <item_prototype>
@@ -181,7 +181,7 @@
                     <trigger_prototypes>
                         <trigger_prototype>
                             <expression>{Template job monitor:job.exit_hourly[{#JOBNAME}].last(0)}#0</expression>
-                            <name>Job {#JOBNAME} has exit code {ITEM.LASTVALUE}</name>
+                            <name>Job {#JOBNAME} on {HOSTNAME} has exit code {ITEM.LASTVALUE}</name>
                             <url/>
                             <status>0</status>
                             <priority>3</priority>
@@ -190,7 +190,7 @@
                         </trigger_prototype>
                         <trigger_prototype>
                             <expression>{Template job monitor:job.exit_hourly[{#JOBNAME}].nodata(120m)}=1</expression>
-                            <name>Last hourly report of {#JOBNAME} too long ago.</name>
+                            <name>Last hourly report of {#JOBNAME} on {HOSTNAME} too long ago.</name>
                             <url/>
                             <status>0</status>
                             <priority>3</priority>
@@ -227,7 +227,7 @@
                     <privatekey/>
                     <port/>
                     <filter>:</filter>
-                    <lifetime>30</lifetime>
+                    <lifetime>0</lifetime>
                     <description/>
                     <item_prototypes>
                         <item_prototype>
@@ -272,7 +272,7 @@
                     <trigger_prototypes>
                         <trigger_prototype>
                             <expression>{Template job monitor:job.exit_manual[{#JOBNAME}].last(0)}#0</expression>
-                            <name>Job {#JOBNAME} has exit code {ITEM.LASTVALUE}</name>
+                            <name>Job {#JOBNAME} on {HOSTNAME} has exit code {ITEM.LASTVALUE}</name>
                             <url/>
                             <status>0</status>
                             <priority>3</priority>
@@ -309,7 +309,7 @@
                     <privatekey/>
                     <port/>
                     <filter>:</filter>
-                    <lifetime>30</lifetime>
+                    <lifetime>0</lifetime>
                     <description/>
                     <item_prototypes>
                         <item_prototype>
@@ -354,7 +354,7 @@
                     <trigger_prototypes>
                         <trigger_prototype>
                             <expression>{Template job monitor:job.exit_montly[{#JOBNAME}].last(0)}#0</expression>
-                            <name>Job {#JOBNAME} has exit code {ITEM.LASTVALUE}</name>
+                            <name>Job {#JOBNAME} on {HOSTNAME} has exit code {ITEM.LASTVALUE}</name>
                             <url/>
                             <status>0</status>
                             <priority>3</priority>
@@ -363,7 +363,7 @@
                         </trigger_prototype>
                         <trigger_prototype>
                             <expression>{Template job monitor:job.exit_montly[{#JOBNAME}].nodata(33d)}=1</expression>
-                            <name>Last montly report of {#JOBNAME} too long ago.</name>
+                            <name>Last montly report of {#JOBNAME} on {HOSTNAME} too long ago.</name>
                             <url/>
                             <status>0</status>
                             <priority>3</priority>
@@ -400,7 +400,7 @@
                     <privatekey/>
                     <port/>
                     <filter>:</filter>
-                    <lifetime>30</lifetime>
+                    <lifetime>0</lifetime>
                     <description/>
                     <item_prototypes>
                         <item_prototype>
@@ -445,7 +445,7 @@
                     <trigger_prototypes>
                         <trigger_prototype>
                             <expression>{Template job monitor:job.exit_weekly[{#JOBNAME}].last(0)}#0</expression>
-                            <name>Job {#JOBNAME} has exit code {ITEM.LASTVALUE}</name>
+                            <name>Job {#JOBNAME} on {HOSTNAME} has exit code {ITEM.LASTVALUE}</name>
                             <url/>
                             <status>0</status>
                             <priority>3</priority>
@@ -454,7 +454,7 @@
                         </trigger_prototype>
                         <trigger_prototype>
                             <expression>{Template job monitor:job.exit_weekly[{#JOBNAME}].nodata(10d)}=1</expression>
-                            <name>Last weekly report of {#JOBNAME} too long ago.</name>
+                            <name>Last weekly report of {#JOBNAME} on {HOSTNAME} too long ago.</name>
                             <url/>
                             <status>0</status>
                             <priority>3</priority>
