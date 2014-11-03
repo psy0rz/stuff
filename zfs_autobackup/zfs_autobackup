@@ -21,19 +21,38 @@ PROPERTY=autobackup:$NAME
 #if you litterally specify localhost, it means its local without ssh
 if [ "$HOST" == "localhost" ]; then
     REMOTE_CMD="eval"
-    #filter the destination if the backup is local
-    FILESYSTEMS=`$REMOTE_CMD "zfs get -t volume,filesystem -o name,value -H $PROPERTY | grep -v "^$DST/" | grep 'true$' | cut -f1"`
 else
     REMOTE_CMD="ssh $HOST"
-    FILESYSTEMS=`$REMOTE_CMD "zfs get -t volume,filesystem -o name,value -H $PROPERTY | grep 'true$' | cut -f1"`
 fi
-        
 
 
+$REMOTE_CMD "zfs get -t volume,filesystem -o value,name,source -s local,inherited -H $PROPERTY" > /tmp/autobackup.$$
+
+FILESYSTEMS=""
+LOCALS=""
+#only accept autobackup properties that are set locally or are inherited from locally set properties. this prevents backups of backups in case of received properties:
+while read VALUE NAME SOURCE ; do
+    if [ "$VALUE" == "true" ]; then
+        if [ "$SOURCE" == "local" ]; then
+            FILESYSTEMS="$FILESYSTEMS $NAME"
+            LOCALS="$LOCALS $NAME "
+        else
+            #is it inherited from a local fs?
+            if echo "$LOCALS" | grep " $INHERITED_NAME " >/dev/null; then
+                FILESYSTEMS="$FILESYSTEMS $NAME"
+            else
+                echo "Ignoring $NAME"
+            fi
+        fi
+    fi
+done < /tmp/autobackup.$$
+
+rm /tmp/autobackup.$$
 
 
 echo "Filesystems to backup:"
 echo "$FILESYSTEMS"
+exit 0
 
 
 for FILESYSTEM in $FILESYSTEMS; do
@@ -46,6 +65,7 @@ for FILESYSTEM in $FILESYSTEMS; do
         zfs create -p $DST/$FILESYSTEM_PARENT
     fi
 
+    echo "Executing: ./zfs_backup $HOST $FILESYSTEM $DST/$FILESYSTEM $NAME"
     ./zfs_backup $HOST $FILESYSTEM $DST/$FILESYSTEM $NAME
 done
 
