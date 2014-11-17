@@ -1,0 +1,23 @@
+#!/bin/bash
+PORT=$1
+CONFIG=$2
+
+if [ "$CONFIG" == "" ]; then
+	CONFIG="default"
+fi
+
+#this breaks the depencendcy tracker:
+#ino build -m atmega328 --cxxflags "-include pin_config_$CONFIG.h" || exit 1
+
+#a bit more hackish, but the above method doesnt work
+echo "#include \"../pin_config_$CONFIG.h\"" > src/pin_config.h || exit 1
+ino build -m atmega328 || exit 1
+
+echo "######### PUSH RESET #######" 
+if [ "$PORT" == "" ]; then
+	ino upload -m atmega328 &&  ino serial -- --omap crlf --echo --baud 115200
+else
+	ino upload -p $1 -m atmega328 &&  ino serial -p $1 -- --omap crlf --echo --baud 115200
+fi
+
+

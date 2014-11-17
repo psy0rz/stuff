@@ -1,0 +1,8 @@
+Example build+install:
+
+./install /dev/ttyUSB0 frontdoor
+
+or if you have multiple devices connected to your PC, you could use the by-path entry:
+
+./install /dev/serial/by-path/pci-0000\:00\:1d.3-usb-0\:2\:1.0-port0 kitchen
+

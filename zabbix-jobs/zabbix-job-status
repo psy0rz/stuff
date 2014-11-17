@@ -1,0 +1,68 @@
+#!/bin/bash
+JOBDIR=/etc/zabbix/zabbix.jobs
+ZABBIX_CONF=/etc/zabbix/zabbix_agentd.conf
+
+set -e
+
+PAR_JOBNAME=$1
+PAR_INTERVAL=$2
+PAR_EXITCODE=$3
+
+if [ "$PAR_EXITCODE" == "" ]; then
+	echo "Usage: $0 <jobname> <interval> <exitcode> [ <ignorecode>... ] "
+	echo "Interval is used to generate alerts if the job is not run for a specific time. (with margins)"
+	echo " hourly  : job should report every hour"
+	echo " daily   : job should report every day"
+	echo " weekly  : job should report every week"
+	echo " montly  : job should report every month"
+	echo " manual  : job is run manually, not at a specific interval."
+	echo
+	echo "Specify ignorecodes for exitcodes that you want to 'ignore' and report 0 instead. Usefull for ignoring exit code 24 in rsync jobs for example."
+	exit 1
+fi
+
+#ignore certain codes
+shift 3
+for IGNORE in $*; do
+	if [ "$IGNORE" == "$PAR_EXITCODE" ]; then
+		PAR_EXITCODE=0
+		break
+	fi
+done
+
+#add job to job-database
+mkdir -p $JOBDIR &>/dev/null || true
+echo "$PAR_INTERVAL" > $JOBDIR/$PAR_JOBNAME 
+
+UPDATES=""
+
+#NOTE: zabbix 2.2.1 you cant use discovery macros in expressions like nodata({#JOBINTERVAL}), so thats why we use a seperatre discovery for every interval. :(
+
+#gererate a discovery rule for all jobs in db:
+cd $JOBDIR 
+JSON_HOURLY=""
+JSON_DAILY=""
+JSON_WEEKLY=""
+JSON_MONTLY=""
+JSON_MANUAL=""
+for JOB in *; do 
+	INTERVAL=`cat $JOB`
+	[ "$INTERVAL" == "hourly" ] && JSON_HOURLY=$JSON_HOURLY',{ "{#JOBNAME}": "'$JOB'" }'
+	[ "$INTERVAL" == "daily" ] && JSON_DAILY=$JSON_DAILY',{ "{#JOBNAME}": "'$JOB'" }'
+	[ "$INTERVAL" == "weekly" ] && JSON_WEEKLY=$JSON_WEEKLY',{ "{#JOBNAME}": "'$JOB'" }'
+	[ "$INTERVAL" == "montly" ] && JSON_MONTLY=$JSON_MONTLY',{ "{#JOBNAME}": "'$JOB'" }'
+	[ "$INTERVAL" == "manual" ] && JSON_MANUAL=$JSON_MANUAL',{ "{#JOBNAME}": "'$JOB'" }'
+done
+[ "$JSON_HOURLY" ] && UPDATES=$UPDATES'- job.hourly { "data": [ '${JSON_HOURLY:1}' ] }\n'
+[ "$JSON_DAILY" ] && UPDATES=$UPDATES'- job.daily { "data": [ '${JSON_DAILY:1}' ] }\n'
+[ "$JSON_WEEKLY" ] && UPDATES=$UPDATES'- job.weekly { "data": [ '${JSON_WEEKLY:1}' ] }\n'
+[ "$JSON_MONTLY" ] && UPDATES=$UPDATES'- job.montly { "data": [ '${JSON_MONTLY:1}' ] }\n'
+[ "$JSON_MANUAL" ] && UPDATES=$UPDATES'- job.manual { "data": [ '${JSON_MANUAL:1}' ] }\n'
+
+#add exitcode of current job
+UPDATES=$UPDATES"- job.exit_$PAR_INTERVAL[$PAR_JOBNAME] $PAR_EXITCODE\n"
+
+
+echo "Sending updates to zabbix:"
+echo -en "$UPDATES"
+echo -en "$UPDATES" | zabbix_sender -vv  -c $ZABBIX_CONF -i -

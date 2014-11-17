@@ -1,0 +1,14 @@
+#!/bin/bash
+PORT=$1
+CONFIG=$2
+
+ino build -m atmega328 || exit 1
+
+echo "######### PUSH RESET #######" 
+if [ "$PORT" == "" ]; then
+	ino upload -m atmega328 &&  ino serial -- --omap crlf --echo --baud 115200
+else
+	ino upload -p $1 -m atmega328 &&  ino serial -p $1 -- --omap crlf --echo --baud 115200
+fi
+
+

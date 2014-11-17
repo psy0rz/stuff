@@ -1,0 +1,60 @@
+#!/usr/bin/python
+
+#CCtalk coin-reader (C)Edwin eefting -- edwin@datux.nl
+#Based on https://bitbucket.org/schryer/cctalk
+
+from time import sleep
+from cctalk.coin_messenger import CoinMessenger
+from cctalk.tools import make_serial_object
+
+
+
+coin_validator_connection = make_serial_object('/dev/ttyUSB0')
+coin_messenger = CoinMessenger(coin_validator_connection)
+
+coin_code_map={ 
+    "EU200A": 200,
+    "EU100A": 100,
+    "EU050A": 50,
+    "EU020A": 20,
+    "EU010A": 10,
+    "EU005A": 5,
+    "EU002A": 2,
+    "EU001A": 1,
+    "HMH2A":100,
+}
+
+coin_id_map={}
+
+#inquery all coin codes and create the id-map
+for id in range(1,17):
+    coin_code=coin_messenger.get_coin_id(id)
+    print("coin id {}={}".format(id, coin_code))
+    if coin_code in coin_code_map:
+        coin_id_map[id]=coin_code_map[coin_code]
+	print(" mapped to {} cents".format(coin_id_map[id]))
+
+
+coin_messenger.request('reset_device', verbose=True)
+
+prev_event_nr=-1
+
+while True:
+    coin_messenger.accept_coins(True, verbose=False)
+    data_buffer = coin_messenger.read_buffer()
+    error_code=data_buffer[2]
+    coin_id=data_buffer[1]
+    event_nr=data_buffer[0]
+
+    if error_code!=1 and error_code!=0:
+        coin_messenger.request('reset_device', verbose=True)
+    else:
+        if event_nr!=prev_event_nr:
+            prev_event_nr=event_nr
+            if coin_id in coin_id_map:
+                print(coin_id_map[coin_id])
+            elif coin_id!=0:
+                print("error, received unknown coin_id: {}".format(coin_id))
+
+    sleep(0.2)
+
