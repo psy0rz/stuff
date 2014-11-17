@@ -39,7 +39,8 @@ while read FS_VALUE FS_NAME FS_SOURCE ; do
             echo "Selecting $FS_NAME (direct selection)"
         else
             #is it inherited from a local fs?
-            INHERITED_NAME=`echo $FS_SOURCE| sed 's/^inherited from//'`
+            INHERITED_NAME=`echo $FS_SOURCE| sed 's/^inherited from //'`
+            #echo "Inherited from $INHERITED_NAME"
             if echo "$LOCALS" | grep " $INHERITED_NAME " >/dev/null; then
                 FILESYSTEMS="$FILESYSTEMS $FS_NAME"
                 echo "Selecting $FS_NAME (inherited selection)"
