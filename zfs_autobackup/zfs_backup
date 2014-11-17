@@ -29,12 +29,12 @@ fi
 
 echo "Backupping from $HOST:$SRC to $DST"
 
-LATEST_REMOTE=`$REMOTE_CMD "zfs list -r -t snapshot -H -o name $SRC 2>/dev/null"|grep @$SNAP_FORMAT- |tail -1`
+LATEST_REMOTE=`$REMOTE_CMD "zfs list -d 1 -r -t snapshot -H -o name $SRC 2>/dev/null"|grep @$SNAP_FORMAT- |tail -1`
 LATEST_REMOTE_SNAPSHOT=@`echo $LATEST_REMOTE | cut -f2 -d@`
 echo "Latest remote snapshot: $LATEST_REMOTE_SNAPSHOT"
 
 #ignore errors if there is no local fs yet
-LATEST_LOCAL=`zfs list -r -t snapshot -H -o name $DST 2>/dev/null|grep @$SNAP_FORMAT- |tail -1`
+LATEST_LOCAL=`zfs list -d 1 -r -t snapshot -H -o name $DST 2>/dev/null|grep @$SNAP_FORMAT- |tail -1`
 LATEST_LOCAL_SNAPSHOT=@`echo $LATEST_LOCAL | cut -f2 -d@`
 echo "Latest local snapshot : $LATEST_LOCAL_SNAPSHOT"
 
@@ -44,28 +44,31 @@ if [ "$LATEST_LOCAL_SNAPSHOT" == "$LATEST_REMOTE_SNAPSHOT" ]; then
     #create new remote snapshot
     NEW_SNAPSHOT="$SNAP_FORMAT-`date +%s`"
     echo "Last backup complete, creating snapshot $NEW_SNAPSHOT"
-    $REMOTE_CMD "zfs snapshot -r $SRC@$NEW_SNAPSHOT"
+    $REMOTE_CMD "zfs snapshot $SRC@$NEW_SNAPSHOT"
     LATEST_REMOTE_SNAPSHOT=@$NEW_SNAPSHOT
 fi
 
 
 if [ "$LATEST_LOCAL" == "" ]; then
     echo "No local snapshots, performing initial full send..."
-    LATEST_LOCAL_SNAPSHOT="IGNOREME"; #this apearantly works..is it a zfs send bug or feature? :)
+    INCREMENTAL=""
 else
     echo "Requesting incremental data from $LATEST_LOCAL_SNAPSHOT to $LATEST_REMOTE_SNAPSHOT..."
+    INCREMENTAL="-i $LATEST_LOCAL_SNAPSHOT"
 fi
+
+
 
 if [ "$HOST" == "localhost" ]; then
     #dont use compression when its local
-    zfs send -v -R -i $LATEST_LOCAL_SNAPSHOT $SRC$LATEST_REMOTE_SNAPSHOT | zfs recv -v "$DST"
+    zfs send -v -p $INCREMENTAL $SRC$LATEST_REMOTE_SNAPSHOT | zfs recv -v "$DST"
 else
-    $REMOTE_CMD "zfs send -v -R -i $LATEST_LOCAL_SNAPSHOT $SRC$LATEST_REMOTE_SNAPSHOT | gzip" | gunzip | zfs recv -v "$DST"
+    $REMOTE_CMD "zfs send -v -p $INCREMENTAL $SRC$LATEST_REMOTE_SNAPSHOT | gzip" | gunzip | zfs recv -v "$DST"
 fi
 
 
 echo "Checking old remote snapshots that we created..."
-OLD_REMOTES=`$REMOTE_CMD "zfs list -r -t snapshot -H -o name $SRC 2>/dev/null"|grep @$SNAP_FORMAT- |grep -v "$LATEST_LOCAL_SNAPSHOT"| grep -v "$LATEST_REMOTE_SNAPSHOT"` || true
+OLD_REMOTES=`$REMOTE_CMD "zfs list -d 1 -r -t snapshot -H -o name $SRC 2>/dev/null"|grep @$SNAP_FORMAT- |grep -v "$LATEST_LOCAL_SNAPSHOT"| grep -v "$LATEST_REMOTE_SNAPSHOT"` || true
 for OLD_REMOTE in $OLD_REMOTES; do
     echo "Destroying old remote snapshot $OLD_REMOTE..."
     $REMOTE_CMD "zfs destroy $OLD_REMOTE"
@@ -73,7 +76,7 @@ done
 
 KEEP=30
 echo "Keeping $KEEP local snapshots, deleting older ones:"
-OLD_LOCALS=`zfs list -r -t snapshot -H -o name $DST|grep @$SNAP_FORMAT- |grep -v "$LATEST_LOCAL_SNAPSHOT"| grep -v "$LATEST_REMOTE_SNAPSHOT"`
+OLD_LOCALS=`zfs list -d 1 -r -t snapshot -H -o name $DST|grep @$SNAP_FORMAT- |grep -v "$LATEST_LOCAL_SNAPSHOT"| grep -v "$LATEST_REMOTE_SNAPSHOT"` || true
 COUNT=`echo $OLD_LOCALS|wc -w`
 for OLD_LOCAL in $OLD_LOCALS; do
     if [ $COUNT -gt $KEEP ]; then
