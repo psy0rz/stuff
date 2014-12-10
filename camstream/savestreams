@@ -1,0 +1,15 @@
+#!/bin/bash
+#Draait een aantal savestream processen in een lus, om zo meerdere streams continu te saven.
+#Haalt de streams uit de streams.conf file
+
+while true; do
+	cat streams.conf | while read NAME URL; do
+		#echo "Checking '$NAME' ($URL)..."
+		if ! pgrep -f "savestream $NAME" >/dev/null; then
+			echo "Restarting savestream for '$NAME'...";
+			sh savestream $NAME $URL 2>&1 | sed -u "s/^/$NAME: /" &
+		fi
+		sleep 1
+	done
+	sleep 1
+done
