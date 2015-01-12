@@ -1,0 +1,57 @@
+#!/bin/bash
+#dit ding genereerd een .asf file van LENGTH seconden lang, en thumbnails om de X frames
+#in directory NAME
+NAME="$1"
+shift
+URL="$*"
+(( LENGTH=15*60 ))
+#LENGTH=60
+FILE=streams/$NAME/`date +%s`.asf
+THUMBDIR=$FILE.thumbs
+
+#init
+mkdir -p $THUMBDIR
+
+#start VLC, maakt een .asf file en een bijbehorende thumbs dir met thumbnails
+vlc -v --color --sout "#duplicate{dst=std{access=file,mux=asf,dst='$FILE'},dst=display}"\
+	-V image --no-drop-late-frames --no-skip-frames --image-out-format jpeg --image-width 184 --image-height 147 --image-out-ratio 1500\
+	--image-out-prefix "$THUMBDIR/"\
+	-I dummy --extraintf dummy \
+	"$URL" vlc:quit  &
+
+#wacht totdat LENGTH voorbij is, of VLC zelf stopt:
+(( WAIT=LENGTH ))
+while [ $WAIT -gt 0 ] && kill -0 %1 2>/dev/null; do
+	jobs &>/dev/null
+	sleep 1
+	(( WAIT -- ))
+done
+
+#stuur een nette CTRL-C
+kill -INT %1 &>/dev/null
+
+
+#wacht op exit voor $WAIT seconden, anders een echt KILL sturen.
+WAIT=15
+while kill -0 %1 2>/dev/null; do
+	jobs &>/dev/null
+	echo "Waiting for VLC to exit gracefully...($WAIT)"
+	sleep 1
+	(( WAIT-- ))
+	if [ $WAIT -le 0 ]; then
+		echo "VLC doesnt quit, killing it!"
+		kill -KILL %1
+		break;
+	fi
+done
+
+#hebben we geen resultaat?
+SIZE=`stat -c %s $FILE`
+if [ "$SIZE" == "" ] || [ "$SIZE" -lt 10000 ]; then
+	echo -n "No data recorded, deleting empty file and dir..."
+	rm -r $THUMBDIR
+	rm $FILE
+	echo "DONE";
+fi
+
+echo "Done"

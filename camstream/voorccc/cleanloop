@@ -1,0 +1,6 @@
+#!/bin/bash
+while true; do
+    php cleanup.php
+    echo "Sleeping for next clean cycle.."
+    sleep 1h || exit 1
+done

@@ -29,7 +29,7 @@ class IRCCat(irc.client.SimpleIRCClient):
             self.send_it()
 
     def on_join(self, connection, event):
-	pass    
+	   pass    
 
     def on_disconnect(self, connection, event):
         time.sleep(10)
