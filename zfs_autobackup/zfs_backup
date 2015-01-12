@@ -39,20 +39,29 @@ LATEST_LOCAL_SNAPSHOT=@`echo $LATEST_LOCAL | cut -f2 -d@`
 echo "Latest local snapshot : $LATEST_LOCAL_SNAPSHOT"
 
 
-
-if [ "$LATEST_LOCAL_SNAPSHOT" == "$LATEST_REMOTE_SNAPSHOT" ]; then
-    #create new remote snapshot
-    NEW_SNAPSHOT="$SNAP_FORMAT-`date +%s`"
-    echo "Last backup complete, creating snapshot $NEW_SNAPSHOT"
-    $REMOTE_CMD "zfs snapshot $SRC@$NEW_SNAPSHOT"
-    LATEST_REMOTE_SNAPSHOT=@$NEW_SNAPSHOT
-fi
-
-
-if [ "$LATEST_LOCAL" == "" ]; then
-    echo "No local snapshots, performing initial full send..."
+#no snapshots found on one side?
+if [ "$LATEST_LOCAL" == "" ] || [ "$LATEST_REMOTE" == "" ]; then
+    echo "No local or remote snapshots, performing full send."
     INCREMENTAL=""
+    
+    if [ "$LATEST_REMOTE" == "" ]; then
+        NEW_SNAPSHOT="$SNAP_FORMAT-`date +%s`"
+        echo "Creating initial remote snapshot $NEW_SNAPSHOT"
+        $REMOTE_CMD "zfs snapshot $SRC@$NEW_SNAPSHOT"
+        LATEST_REMOTE_SNAPSHOT=@$NEW_SNAPSHOT
+    fi
+#both sides have at least one snapshot
 else
+
+    #last backup complete?
+    if [ "$LATEST_LOCAL_SNAPSHOT" == "$LATEST_REMOTE_SNAPSHOT" ]; then
+        #create new remote snapshot
+        NEW_SNAPSHOT="$SNAP_FORMAT-`date +%s`"
+        echo "Last backup complete, creating new remote snapshot $NEW_SNAPSHOT"
+        $REMOTE_CMD "zfs snapshot $SRC@$NEW_SNAPSHOT"
+        LATEST_REMOTE_SNAPSHOT=@$NEW_SNAPSHOT
+    fi
+
     echo "Requesting incremental data from $LATEST_LOCAL_SNAPSHOT to $LATEST_REMOTE_SNAPSHOT..."
     INCREMENTAL="-i $LATEST_LOCAL_SNAPSHOT"
 fi
