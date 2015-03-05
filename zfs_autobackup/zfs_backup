@@ -15,6 +15,7 @@ if ! [ "$NAME" ]; then
     echo "If host is 'localhost' then it will operate locally without ssh"
     echo "Make sure you use an unique backupname for every backup job."
     echo
+    echo "NOTE: set readonly=yes on the target to prevent errors with changed datasets during receive"
     exit 1
 fi
 
@@ -70,9 +71,9 @@ fi
 
 if [ "$HOST" == "localhost" ]; then
     #dont use compression when its local
-    zfs send -v -p $INCREMENTAL $SRC$LATEST_REMOTE_SNAPSHOT | zfs recv -F -v "$DST"
+    zfs send -v -p $INCREMENTAL $SRC$LATEST_REMOTE_SNAPSHOT | zfs recv -v "$DST"
 else
-    $REMOTE_CMD "zfs send -v -p $INCREMENTAL $SRC$LATEST_REMOTE_SNAPSHOT | gzip" | gunzip | zfs recv -F -v "$DST"
+    $REMOTE_CMD "zfs send -v -p $INCREMENTAL $SRC$LATEST_REMOTE_SNAPSHOT | gzip" | gunzip | zfs recv -v "$DST"
 fi
 
 
