@@ -30,7 +30,7 @@ void setup()
 }
 
 //screen size
-#define Y_MAX 1000
+#define Y_MAX 1000 //not actual screen size..we downscale this later because arduino is bad at floats
 #define Y_MIN -200 //negative so the player doesnt instantly die on the bottom
 #define X_MAX 7
 #define X_MIN 0
@@ -66,7 +66,7 @@ void loop()
   int tube_countdown=10; //cycles before creating next tube
   int tube_countdown_min=10;
   int tube_countdown_max=100;
-
+  byte tube_bits_at_bird=0;
 
   unsigned long start_time=millis();
   int frame_time=25;
@@ -109,7 +109,7 @@ void loop()
 
     //downscale birdheight to 8 pixels :P
     //( LSB is top pixel )
-    lc.setRow(0, bird_x,  (B10000000 >> ((bird_y*7) / Y_MAX)) );
+    byte bird_bits=(B10000000 >> ((bird_y*7) / Y_MAX));
 
     //////////////////////////////// tubes
 
@@ -118,6 +118,8 @@ void loop()
     //shift all tubes left
     if (millis()-tube_time > tube_shift_delay)
     {
+      tube_bits_at_bird=0;
+
       tube_time=millis();
       for (int tube_nr=0; tube_nr<TUBES; tube_nr++)
       {
@@ -127,11 +129,23 @@ void loop()
           lc.setRow(0, tubes[tube_nr].x, 0);
           tubes[tube_nr].x--;
 
-          //draw on new location
+          //draw on new location, and do collision detection
           if (tubes[tube_nr].x>=X_MIN)
           {
-            lc.setRow(0, tubes[tube_nr].x, 0xff);
+            //determine tube-bits (some bitwise magic instead of forloops)
+            byte tube_bits=(1 <<((tubes[tube_nr].gap*7/Y_MAX)+1))-1; //determine gap-pixels 
+            tube_bits=tube_bits << (tubes[tube_nr].y*7/Y_MAX); //shift gap in place
+            tube_bits=~tube_bits; //invert it to get an actual gap
 
+            //are we on the birdplace?
+            if (tubes[tube_nr].x==bird_x)
+            {
+              tube_bits_at_bird=tube_bits;
+            }
+            else
+            {
+              lc.setRow(0, tubes[tube_nr].x, tube_bits);
+            }
           }
         }
         //tube is inactive, do we need a new tube?
@@ -141,14 +155,19 @@ void loop()
           {
             tubes[tube_nr].x=X_MAX+1;
             tubes[tube_nr].y=random(tube_min, tube_max);
+            tubes[tube_nr].gap=tube_gap;
             tube_countdown=random(tube_countdown_min, tube_countdown_max);
           }
         }
       }
     }
 
-
+    //draw bird     
+    lc.setRow(0, bird_x,  bird_bits|tube_bits_at_bird);
  
+    //collision?
+    if (tube_bits_at_bird && ( (tube_bits_at_bird|bird_bits) == tube_bits_at_bird))
+      while(1);
 
 
     //wait for next frame
