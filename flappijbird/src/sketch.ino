@@ -56,8 +56,8 @@ void loop()
   int bird_gravity=-7;
 
   //tube
-  int tube_min=300;
-  int tube_max=500;
+  int tube_min=100;
+  int tube_max=900;
   int tube_gap=300;
 
   int tube_shift_delay=250; //milliseconds between each left shift
@@ -167,7 +167,14 @@ void loop()
  
     //collision?
     if (tube_bits_at_bird && ( (tube_bits_at_bird|bird_bits) == tube_bits_at_bird))
-      while(1);
+      while(1)
+      {
+        lc.setRow(0, bird_x, bird_bits);
+        delay(100);
+        lc.setRow(0, bird_x, bird_bits|tube_bits_at_bird);
+        delay(100);
+
+      }
 
 
     //wait for next frame
