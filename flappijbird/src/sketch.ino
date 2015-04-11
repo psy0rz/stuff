@@ -29,24 +29,61 @@ void setup()
     digitalWrite(lowPin, LOW);
 }
 
+//screen size
+#define Y_MAX 1000
+#define Y_MIN -200 //negative so the player doesnt instantly die on the bottom
+#define X_MAX 7
+#define X_MIN 0
+
+#define BIRD_JUMP_SPEED 60
+
+#define TUBES 3 //max nr of tubes active at the same time
+
+struct tube_status
+{
+  int y;
+  int x;
+  int gap;
+};
+
 void loop()
 {
-  int bird_max=1000;
-  int bird_min=-200;
-  int bird_y=bird_max/2;
+
+  //bird physics
+  int bird_y=Y_MAX/2;
   int bird_x=3;
   int bird_speed=0;
   int bird_gravity=-7;
-  int bird_jump_speed=60; 
+
+  //tube
+  int tube_min=300;
+  int tube_max=500;
+  int tube_gap=300;
+
+  int tube_shift_delay=250; //milliseconds between each left shift
+  tube_status tubes[TUBES]; 
+  unsigned long tube_time=millis();
+  int tube_countdown=10; //cycles before creating next tube
+  int tube_countdown_min=10;
+  int tube_countdown_max=100;
+
 
   unsigned long start_time=millis();
   int frame_time=25;
 
   bool button_state=false;
 
+  //init tubes  
+  for (int tube_nr=0; tube_nr<TUBES; tube_nr++)
+  {
+    tubes[tube_nr].x=X_MIN-1; //disables it
+  }
+
+
   while(1)
   {
     start_time=millis();
+    //////////////////////////////// bird physics and control
 
     //gravity, keep accelerating downwards
     bird_speed=bird_speed+bird_gravity;
@@ -58,21 +95,61 @@ void loop()
 
       //its pressed, so jump! 
       if (!button_state)
-          bird_speed=bird_jump_speed;
+          bird_speed=BIRD_JUMP_SPEED;
     }
 
     //change y postion of bird
     bird_y=bird_y+bird_speed;
 
-    if (bird_y<bird_min)
-      bird_y=bird_min;
+    if (bird_y<Y_MIN)
+      bird_y=Y_MIN;
 
-    if (bird_y>bird_max)
-      bird_y=bird_max;
+    if (bird_y>Y_MAX)
+      bird_y=Y_MAX;
 
     //downscale birdheight to 8 pixels :P
     //( LSB is top pixel )
-    lc.setRow(0, bird_x,  (B10000000 >> ((bird_y*7) / bird_max)) );
+    lc.setRow(0, bird_x,  (B10000000 >> ((bird_y*7) / Y_MAX)) );
+
+    //////////////////////////////// tubes
+
+    tube_countdown--;
+
+    //shift all tubes left
+    if (millis()-tube_time > tube_shift_delay)
+    {
+      tube_time=millis();
+      for (int tube_nr=0; tube_nr<TUBES; tube_nr++)
+      {
+        if (tubes[tube_nr].x>=X_MIN)
+        {
+          //remove from old location
+          lc.setRow(0, tubes[tube_nr].x, 0);
+          tubes[tube_nr].x--;
+
+          //draw on new location
+          if (tubes[tube_nr].x>=X_MIN)
+          {
+            lc.setRow(0, tubes[tube_nr].x, 0xff);
+
+          }
+        }
+        //tube is inactive, do we need a new tube?
+        else
+        {
+          if (tube_countdown<0)
+          {
+            tubes[tube_nr].x=X_MAX+1;
+            tubes[tube_nr].y=random(tube_min, tube_max);
+            tube_countdown=random(tube_countdown_min, tube_countdown_max);
+          }
+        }
+      }
+    }
+
+
+ 
+
 
     //wait for next frame
     while( (millis()-start_time) < frame_time){
