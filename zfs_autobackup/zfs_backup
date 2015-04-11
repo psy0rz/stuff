@@ -15,6 +15,7 @@ if ! [ "$NAME" ]; then
     echo "If host is 'localhost' then it will operate locally without ssh"
     echo "Make sure you use an unique backupname for every backup job."
     echo
+    echo "NOTE: set readonly=yes on the target to prevent errors with changed datasets during receive"
     exit 1
 fi
 
@@ -70,17 +71,22 @@ fi
 
 if [ "$HOST" == "localhost" ]; then
     #dont use compression when its local
-    zfs send -v -p $INCREMENTAL $SRC$LATEST_REMOTE_SNAPSHOT | zfs recv -v "$DST"
+    zfs send -v -p $INCREMENTAL $SRC$LATEST_REMOTE_SNAPSHOT | zfs recv -v -u "$DST"
 else
-    $REMOTE_CMD "zfs send -v -p $INCREMENTAL $SRC$LATEST_REMOTE_SNAPSHOT | gzip" | gunzip | zfs recv -v "$DST"
+    $REMOTE_CMD "zfs send -v -p $INCREMENTAL $SRC$LATEST_REMOTE_SNAPSHOT | gzip" | gunzip | zfs recv -v -u "$DST"
 fi
 
 
 echo "Checking old remote snapshots that we created..."
+KEEP=30
 OLD_REMOTES=`$REMOTE_CMD "zfs list -d 1 -r -t snapshot -H -o name $SRC 2>/dev/null"|grep @$SNAP_FORMAT- |grep -v "$LATEST_LOCAL_SNAPSHOT"| grep -v "$LATEST_REMOTE_SNAPSHOT"` || true
+COUNT=`echo $OLD_REMOTES|wc -w`
 for OLD_REMOTE in $OLD_REMOTES; do
-    echo "Destroying old remote snapshot $OLD_REMOTE..."
-    $REMOTE_CMD "zfs destroy $OLD_REMOTE" || true 
+    if [ $COUNT -gt $KEEP ]; then
+        echo "Destroying old remote snapshot $OLD_REMOTE..."
+        $REMOTE_CMD "zfs destroy $OLD_REMOTE" || true 
+        (( COUNT=COUNT-1 ))
+    fi
 done
 
 KEEP=30
