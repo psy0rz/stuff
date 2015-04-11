@@ -1,5 +1,18 @@
 #include "LedControl.h"
 
+/*** 
+
+flappIJbird for Ijduino. (C)2015 edwin@datux.nl
+
+ijduino: http://ijhack.nl/project/ijduino
+
+github: https://github.com/psy0rz/stuff/tree/master/flappijbird
+
+Released under GPL. 
+
+***/
+
+
 static const int DATA_PIN = 20;
 static const int CLK_PIN  = 5;
 static const int CS_PIN   = 21;
