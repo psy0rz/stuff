@@ -1,0 +1,4 @@
+#!/bin/bash
+
+ino build -m ijduino  && avrdude -c usbasp -p m328p -Uflash:w:.build/ijduino/firmware.hex
+
