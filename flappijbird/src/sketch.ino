@@ -44,7 +44,7 @@ void setup()
 
 //screen size
 #define Y_MAX 1000 //not actual screen size..we downscale this later because arduino is bad at floats
-#define Y_MIN -200 //negative so the player doesnt instantly die on the bottom
+#define Y_MIN -100 //negative so the player doesnt instantly die on the bottom
 #define X_MAX 7
 #define X_MIN 0
 
@@ -67,6 +67,7 @@ void loop()
   int bird_x=3;
   int bird_speed=0;
   int bird_gravity=-7;
+  byte bird_bits=0;
 
   //tube
   int tube_min=100;
@@ -84,13 +85,18 @@ void loop()
   unsigned long start_time=millis();
   int frame_time=25;
 
-  bool button_state=false;
+  bool button_state=true;
 
   //init tubes  
   for (int tube_nr=0; tube_nr<TUBES; tube_nr++)
   {
     tubes[tube_nr].x=X_MIN-1; //disables it
   }
+
+  //wait for startbutton press
+  bird_bits=(B10000000 >> ((bird_y*7) / Y_MAX));
+  lc.setRow(0, bird_x,  bird_bits);
+  while(digitalRead(buttonPin)){ ; }
 
 
   while(1)
@@ -114,15 +120,24 @@ void loop()
     //change y postion of bird
     bird_y=bird_y+bird_speed;
 
+    //fell on the bottom?
     if (bird_y<Y_MIN)
-      bird_y=Y_MIN;
+    {
+      while(1)
+      {
+        lc.setRow(0, bird_x, tube_bits_at_bird);
+        delay(100);
+        lc.setRow(0, bird_x, bird_bits);
+        delay(100);
+      }
+    }
 
     if (bird_y>Y_MAX)
       bird_y=Y_MAX;
 
     //downscale birdheight to 8 pixels :P
     //( LSB is top pixel )
-    byte bird_bits=(B10000000 >> ((bird_y*7) / Y_MAX));
+    bird_bits=(B10000000 >> ((bird_y*7) / Y_MAX));
 
     //////////////////////////////// tubes
 
@@ -146,9 +161,9 @@ void loop()
           if (tubes[tube_nr].x>=X_MIN)
           {
             //determine tube-bits (some bitwise magic instead of forloops)
-            byte tube_bits=(1 <<((tubes[tube_nr].gap*7/Y_MAX)+1))-1; //determine gap-pixels 
-            tube_bits=tube_bits << (tubes[tube_nr].y*7/Y_MAX); //shift gap in place
-            tube_bits=~tube_bits; //invert it to get an actual gap
+            byte tube_bits=(1 <<((tubes[tube_nr].gap*7/Y_MAX)+1))-1; //determine gap-pixels  00000111    
+            tube_bits=tube_bits << (tubes[tube_nr].y*7/Y_MAX); //shift gap in place          00011100     
+            tube_bits=~tube_bits; //invert it to get an actual gap                           11100011
 
             //are we on the birdplace?
             if (tubes[tube_nr].x==bird_x)
@@ -186,7 +201,6 @@ void loop()
         delay(100);
         lc.setRow(0, bird_x, bird_bits|tube_bits_at_bird);
         delay(100);
-
       }
 
 
