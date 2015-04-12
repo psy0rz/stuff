@@ -22,6 +22,7 @@ static const int CS_PIN   = 21;
 
 static const int lowPin = 11;             /* ground pin for the buton ;-) */
 static const int buttonPin = 9;           /* choose the input pin for the pushbutton */
+static const int soundPin = 8;             
 
 static const int resetScorePin = 10;      /* pull this to ground to reset score */
 static const int scoreAddress = 10;           /* choose the input pin for the pushbutton */
@@ -78,6 +79,7 @@ void(* reboot) (void) = 0;
 
 void finished(int score)
 {
+  noTone(soundPin); //interference with scroll
   sprintf(msg,"    %d  ", score);
   scrolltext(lc, msg, 50);
 
@@ -86,6 +88,10 @@ void finished(int score)
   {
     EEPROM.write(scoreAddress, score);
     //TODO: rickroll
+  }
+  else
+  {
+    ;
   }
 }
 
@@ -155,12 +161,13 @@ void loop()
     //crashed on bottom?
     if (bird_y<Y_MIN)
     {
-      for (int i=0; i<10; i++)
+      for (int i=0; i<20; i++)
       {
+        tone(soundPin, 2000- (i*100), 200);
         lc.setRow(0, bird_x, tube_bits_at_bird);
-        delay(100);
+        delay(50);
         lc.setRow(0, bird_x, bird_bits);
-        delay(100);
+        delay(50);
       }
       finished(score);
       reboot();
@@ -211,7 +218,10 @@ void loop()
 
             //is the tube past the bird?
             if (tubes[tube_nr].x==bird_x-1)
+            {
               score++; //scored a point! \o/
+              tone(soundPin, 1000+(score*100), 100);
+            }
           }
         }
         //tube is inactive, do we need a new tube?
@@ -239,10 +249,12 @@ void loop()
       {
         for (int i=0; i<10; i++)
         {
+          tone(soundPin, 1000, 100);
           lc.setRow(0, bird_x, bird_bits);
-          delay(100);
+          delay(50);
+          tone(soundPin, 500, 100);
           lc.setRow(0, bird_x, bird_bits|tube_bits_at_bird);
-          delay(100);
+          delay(50);
         }
         finished(score);
         reboot();
