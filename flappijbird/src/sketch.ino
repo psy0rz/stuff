@@ -1,8 +1,11 @@
-#include "LedControl.h"
-
+#include "LedControlMS.h"
+#include "scroller.h"
+#include <EEPROM.h>
 /*** 
 
 flappIJbird for Ijduino. (C)2015 edwin@datux.nl
+
+first created at the https://nurdspace.nl Nurd-inn.
 
 ijduino: http://ijhack.nl/project/ijduino
 
@@ -19,6 +22,9 @@ static const int CS_PIN   = 21;
 
 static const int lowPin = 11;             /* ground pin for the buton ;-) */
 static const int buttonPin = 9;           /* choose the input pin for the pushbutton */
+
+static const int resetScorePin = 10;      /* pull this to ground to reset score */
+static const int scoreAddress = 10;           /* choose the input pin for the pushbutton */
 
 static const int INTENSITY = 5;
 
@@ -40,6 +46,13 @@ void setup()
     pinMode(buttonPin, INPUT_PULLUP);
     pinMode(lowPin, OUTPUT);
     digitalWrite(lowPin, LOW);
+
+    //reset score?
+    pinMode(resetScorePin, INPUT_PULLUP);
+    if (!digitalRead(resetScorePin))
+    {
+      EEPROM.write(scoreAddress,0);
+    }
 }
 
 //screen size
@@ -59,8 +72,22 @@ struct tube_status
   int gap;
 };
 
+void(* reboot) (void) = 0;
+
+void finished(int score)
+{
+  //got highscore?
+  if (score>EEPROM.read(scoreAddress))
+  {
+    EEPROM.write(scoreAddress, score);
+    //TODO: rickroll
+  }
+}
+
+
 void loop()
 {
+
 
   //bird physics
   int bird_y=Y_MAX/2;
@@ -82,6 +109,8 @@ void loop()
   int tube_countdown_max=100;
   byte tube_bits_at_bird=0;
 
+  int score=0;
+
   unsigned long start_time=millis();
   int frame_time=25;
 
@@ -92,6 +121,11 @@ void loop()
   {
     tubes[tube_nr].x=X_MIN-1; //disables it
   }
+
+  //show highscore
+  char highscore_msg[10];
+  sprintf(highscore_msg,"    %d  ", EEPROM.read(scoreAddress));
+  scrolltext(lc, highscore_msg, 50);
 
   //wait for startbutton press
   bird_bits=(B10000000 >> ((bird_y*7) / Y_MAX));
@@ -120,16 +154,18 @@ void loop()
     //change y postion of bird
     bird_y=bird_y+bird_speed;
 
-    //fell on the bottom?
+    //crashed on bottom?
     if (bird_y<Y_MIN)
     {
-      while(1)
+      finished(score);
+      for (int i=0; i<10; i++)
       {
         lc.setRow(0, bird_x, tube_bits_at_bird);
         delay(100);
         lc.setRow(0, bird_x, bird_bits);
         delay(100);
       }
+      reboot();
     }
 
     if (bird_y>Y_MAX)
@@ -174,6 +210,10 @@ void loop()
             {
               lc.setRow(0, tubes[tube_nr].x, tube_bits);
             }
+
+            //is the tube past the bird?
+            if (tubes[tube_nr].x==bird_x-1)
+              score++; //scored a point! \o/
           }
         }
         //tube is inactive, do we need a new tube?
@@ -193,15 +233,23 @@ void loop()
     //draw bird     
     lc.setRow(0, bird_x,  bird_bits|tube_bits_at_bird);
  
-    //collision?
-    if (tube_bits_at_bird && ( (tube_bits_at_bird|bird_bits) == tube_bits_at_bird))
-      while(1)
+    //is the tube at the bird? 
+    if (tube_bits_at_bird)
+    {
+      //collision?
+      if ( (tube_bits_at_bird|bird_bits) == tube_bits_at_bird)
       {
-        lc.setRow(0, bird_x, bird_bits);
-        delay(100);
-        lc.setRow(0, bird_x, bird_bits|tube_bits_at_bird);
-        delay(100);
+        finished(score);
+        for (int i=0; i<10; i++)
+        {
+          lc.setRow(0, bird_x, bird_bits);
+          delay(100);
+          lc.setRow(0, bird_x, bird_bits|tube_bits_at_bird);
+          delay(100);
+        }
+        reboot();
       }
+    }
 
 
     //wait for next frame
