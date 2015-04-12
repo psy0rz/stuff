@@ -4,7 +4,8 @@
 
 #define DISPLAYS 1
 
-void scrolltext(LedControl & lc, char *msg, int wait)
+//returns false on abort
+bool scrolltext(LedControl & lc, char *msg, int wait, int abort_pin=0)
 {
 
 	int curcharix = 0;
@@ -16,15 +17,17 @@ void scrolltext(LedControl & lc, char *msg, int wait)
 	char curchar;
 	int msgsize=strlen(msg);
 
+	int abort_state=digitalRead(abort_pin);
+
 	int i,j,k;
-    for (;;)
+    while(abort_pin==0 || digitalRead(abort_pin)==abort_state)
 	{
 		curcharixsave2 = curcharix;
 		curcharbitsave2 = curcharbit;
 
 		for (i=DISPLAYS-1;i>=0;i--) // Loop through our 1 display
 		{
-			for (j=0;j<7;j++) // Set up rows on current  display
+			for (j=0;j<8;j++) // Set up rows on current  display
 			{      
 				byte outputbyte = 0;
                                 curchar = msg[curcharix];
@@ -74,7 +77,7 @@ void scrolltext(LedControl & lc, char *msg, int wait)
 			curcharbit = 0;
 			curcharix += 1;
 			if (curcharix+1 >= msgsize)  {
-				return;
+				return(true);
 			}
 			curchar = msg[curcharix];
 
@@ -82,5 +85,8 @@ void scrolltext(LedControl & lc, char *msg, int wait)
 
 		delay(wait);
 	}
+
+	lc.clearDisplay(0);
+	return(false);
 }
 

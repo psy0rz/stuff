@@ -65,6 +65,8 @@ void setup()
 
 #define TUBES 3 //max nr of tubes active at the same time
 
+char msg[100];
+
 struct tube_status
 {
   int y;
@@ -76,8 +78,11 @@ void(* reboot) (void) = 0;
 
 void finished(int score)
 {
+  sprintf(msg,"    %d  ", score);
+  scrolltext(lc, msg, 50);
+
   //got highscore?
-  if (score>EEPROM.read(scoreAddress))
+  if (score>EEPROM.read(scoreAddress) || EEPROM.read(scoreAddress==255))
   {
     EEPROM.write(scoreAddress, score);
     //TODO: rickroll
@@ -123,15 +128,8 @@ void loop()
   }
 
   //show highscore
-  char highscore_msg[10];
-  sprintf(highscore_msg,"    %d  ", EEPROM.read(scoreAddress));
-  scrolltext(lc, highscore_msg, 50);
-
-  //wait for startbutton press
-  bird_bits=(B10000000 >> ((bird_y*7) / Y_MAX));
-  lc.setRow(0, bird_x,  bird_bits);
-  while(digitalRead(buttonPin)){ ; }
-
+  sprintf(msg,"   highscore %d - flappIJbird ", EEPROM.read(scoreAddress));
+  while(scrolltext(lc, msg, 25, buttonPin));
 
   while(1)
   {
@@ -157,7 +155,6 @@ void loop()
     //crashed on bottom?
     if (bird_y<Y_MIN)
     {
-      finished(score);
       for (int i=0; i<10; i++)
       {
         lc.setRow(0, bird_x, tube_bits_at_bird);
@@ -165,6 +162,7 @@ void loop()
         lc.setRow(0, bird_x, bird_bits);
         delay(100);
       }
+      finished(score);
       reboot();
     }
 
@@ -239,7 +237,6 @@ void loop()
       //collision?
       if ( (tube_bits_at_bird|bird_bits) == tube_bits_at_bird)
       {
-        finished(score);
         for (int i=0; i<10; i++)
         {
           lc.setRow(0, bird_x, bird_bits);
@@ -247,6 +244,7 @@ void loop()
           lc.setRow(0, bird_x, bird_bits|tube_bits_at_bird);
           delay(100);
         }
+        finished(score);
         reboot();
       }
     }
