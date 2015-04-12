@@ -93,6 +93,7 @@ void finished(int score)
   {
     ;
   }
+  reboot();
 }
 
 
@@ -170,7 +171,6 @@ void loop()
         delay(50);
       }
       finished(score);
-      reboot();
     }
 
     if (bird_y>Y_MAX)
@@ -238,7 +238,7 @@ void loop()
       }
     }
 
-    //draw bird     
+    //draw bird (and tube)
     lc.setRow(0, bird_x,  bird_bits|tube_bits_at_bird);
  
     //is the tube at the bird? 
@@ -257,7 +257,6 @@ void loop()
           delay(50);
         }
         finished(score);
-        reboot();
       }
     }
 
