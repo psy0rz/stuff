@@ -1,6 +1,7 @@
 #include "LedControlMS.h"
 #include "scroller.h"
 #include <EEPROM.h>
+#include "rickroll.h"
 /*** 
 
 flappIJbird for Ijduino. (C)2015 edwin@datux.nl
@@ -84,10 +85,10 @@ void finished(int score)
   scrolltext(lc, msg, 50);
 
   //got highscore?
-  if (score>EEPROM.read(scoreAddress) || EEPROM.read(scoreAddress==255))
+  if (score>EEPROM.read(scoreAddress) || EEPROM.read(scoreAddress)==255)
   {
     EEPROM.write(scoreAddress, score);
-    //TODO: rickroll
+    rickroll();
   }
   else
   {
@@ -162,9 +163,9 @@ void loop()
     //crashed on bottom?
     if (bird_y<Y_MIN)
     {
-      for (int i=0; i<20; i++)
+      for (int i=0; i<10; i++)
       {
-        tone(soundPin, 2000- (i*100), 200);
+        tone(soundPin, 2000- (i*200), 200);
         lc.setRow(0, bird_x, tube_bits_at_bird);
         delay(50);
         lc.setRow(0, bird_x, bird_bits);
