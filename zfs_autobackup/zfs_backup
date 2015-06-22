@@ -71,10 +71,14 @@ fi
 
 if [ "$HOST" == "localhost" ]; then
     #dont use compression when its local
-    zfs send -v -p $INCREMENTAL $SRC$LATEST_REMOTE_SNAPSHOT | zfs recv -v -u "$DST"
+    zfs send -v -p $INCREMENTAL $SRC$LATEST_REMOTE_SNAPSHOT | zfs recv -v -u "$DST" || true
 else
-    $REMOTE_CMD "zfs send -v -p $INCREMENTAL $SRC$LATEST_REMOTE_SNAPSHOT | gzip" | gunzip | zfs recv -v -u "$DST"
+    echo "$REMOTE_CMD \"zfs send -v -p $INCREMENTAL $SRC$LATEST_REMOTE_SNAPSHOT | gzip\" | gunzip | zfs recv -v -u \"$DST\""
+    $REMOTE_CMD "zfs send -v -p $INCREMENTAL $SRC$LATEST_REMOTE_SNAPSHOT | gzip" | gunzip | zfs recv -v -u "$DST" || true
 fi
+
+#recv sometimes exits with code 1 while everything seems fine, so ignore those errors and check if the snapshot is there:
+zfs list $DST$LATEST_REMOTE_SNAPSHOT > /dev/null
 
 
 echo "Checking old remote snapshots that we created..."
