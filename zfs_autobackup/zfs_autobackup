@@ -69,8 +69,8 @@ for FILESYSTEM in $FILESYSTEMS; do
         zfs create -p $DST/$FILESYSTEM_PARENT
     fi
 
-    echo "Executing: ./zfs_backup $HOST $FILESYSTEM $DST/$FILESYSTEM $NAME"
-    ./zfs_backup $HOST $FILESYSTEM $DST/$FILESYSTEM $NAME
+    echo "Executing: zfs_backup $HOST $FILESYSTEM $DST/$FILESYSTEM $NAME"
+    zfs_backup $HOST $FILESYSTEM $DST/$FILESYSTEM $NAME
 done
 
 echo "All backups done"
