@@ -1,0 +1,107 @@
+#!/usr/bin/python
+# -*- coding: utf8 -*- 
+
+import os
+import sys
+import re
+import traceback
+import subprocess
+import pprint
+
+###### parse arguments
+import argparse
+parser = argparse.ArgumentParser(description='ZFS autobackup v2.0')
+parser.add_argument('--ssh-source', default=None, help='Source host to get backup from. (user@hostname) Default is local.')
+parser.add_argument('--ssh-target', default=None, help='Source target to push backup to. (user@hostname) Default is local.')
+parser.add_argument('backup_name',    help='Name of the backup (you should set the zfs property "autobackup:backup-name" to true on filesystems you want to backup')
+parser.add_argument('target_fs',    help='Target filesystem')
+
+parser.add_argument('--compress', action='store_true', help='use compression during zfs send/recv')
+parser.add_argument('--test', action='store_true', help='dont change anything, just show what would be done (this also enables verbose mode)')
+parser.add_argument('--verbose', action='store_true', help='verbose output')
+parser.add_argument('--debug', action='store_true', help='debug output (shows user details, decicions that are made and commands that are executed)')
+args = parser.parse_args()
+
+
+def verbose(txt):
+    if args.verbose:
+        print(txt)
+
+def debug(txt):
+    if args.debug:
+        print(txt)
+
+
+
+"""run a command. specifiy ssh user@host to run remotely"""
+def run(cmd, ssh_to=None, tab_split=False):
+
+    encoded_cmd=[]
+
+    #use ssh?
+    if ssh_to:
+        encoded_cmd.extend(["ssh", ssh_to])
+
+    #make sure the command gets all the data in utf8 format:
+    #(this is neccesary if LC_ALL=en_US.utf8 is not set in the environment)
+    for arg in cmd:
+        encoded_cmd.append(arg.encode('utf-8'))
+
+    #the accurate way of displaying it whould be: print encoded_cmd
+    #However, we use the more human-readable way, but this is not always properly escaped!
+    #(most of the time it should be copypastable however.)
+    debug("# "+encoded_cmd[0]+" '"+("' '".join(encoded_cmd[1:]))+"'")
+
+    if not args.test:
+        output=subprocess.check_output(encoded_cmd, env=os.environ)
+        lines=output.splitlines()
+        if not tab_split:
+            return(lines)
+        else:
+            ret=[]
+            for line in lines:
+                ret.append(line.split("\t"))
+            return(ret)
+
+#pipe stuff
+# p1 = Popen(["dmesg"], stdout=PIPE)
+# p2 = Popen(["grep", "hda"], stdin=p1.stdout, stdout=PIPE)
+# p1.stdout.close()  # Allow p1 to receive a SIGPIPE if p2 exits.
+# output = p2.communicate()[0]
+
+"""determine filesystems that should be backupped by looking at the special autobackup-property"""
+def get_selected_filesystems(ssh_to, backup_name):
+    #get all source filesystems that have the backup property
+    source_filesystems=run(ssh_to=ssh_to, tab_split=True, cmd=[
+        "zfs", "get", "-t",  "volume,filesystem", "-o", "name,value,source", "-s", "local,inherited", "-H", "autobackup:"+backup_name
+    ])
+
+    #determine filesystems that should be actually backupped
+    selected_filesystems=[]
+    direct_filesystems=[]
+    for source_filesystem in source_filesystems:
+        (name,value,source)=source_filesystem
+        if value=="false":
+            verbose("Ignoring: {} (disabled)".format(name))
+
+        else:
+            if source=="local":
+                selected_filesystems.append(name)
+                direct_filesystems.append(name)
+                verbose("Selected: {} (direct selection)".format(name))
+            elif source.find("inherited from ")==0:
+                inherited_from=re.sub("^inherited from ", "", source)
+                if inherited_from in direct_filesystems:
+                    selected_filesystems.append(name)
+                    verbose("Selected: {} (inherited selection)".format(name))
+                else:
+                    verbose("Ignored: {} (already a backup)".format(name))
+            else:
+                vebose("Ignored: {} ({})".format(source))
+
+    return(selected_filesystems)
+
+
+
+pprint.pprint(get_selected_filesystems(args.ssh_source, args.backup_name))
+
