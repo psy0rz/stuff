@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf8 -*- 
 
+from __future__ import print_function
 import os
 import sys
 import re
@@ -22,6 +23,9 @@ parser.add_argument('--verbose', action='store_true', help='verbose output')
 parser.add_argument('--debug', action='store_true', help='debug output (shows user details, decicions that are made and commands that are executed)')
 args = parser.parse_args()
 
+
+def error(txt):
+    print(txt, file=sys.stderr)
 
 def verbose(txt):
     if args.verbose:
@@ -69,6 +73,7 @@ def run(cmd, ssh_to=None, tab_split=False):
 # p1.stdout.close()  # Allow p1 to receive a SIGPIPE if p2 exits.
 # output = p2.communicate()[0]
 
+
 """determine filesystems that should be backupped by looking at the special autobackup-property"""
 def get_selected_filesystems(ssh_to, backup_name):
     #get all source filesystems that have the backup property
@@ -102,6 +107,34 @@ def get_selected_filesystems(ssh_to, backup_name):
     return(selected_filesystems)
 
 
+"""latest snapshot-name for a filesystem and backup_name"""
+def get_latest_snapshot(ssh_to, filesystem, backup_name):
+    snapshots=run(ssh_to=ssh_to, tab_split=False, cmd=[
+            "zfs", "list", "-d", "1", "-r", "-t" ,"snapshot", "-H", "-o", "name", filesystem
+        ])
 
-pprint.pprint(get_selected_filesystems(args.ssh_source, args.backup_name))
+    latest_snapshot=None
+    # pprint.pprint(snapshots)
+    for snapshot in snapshots:
+        if re.match("^"+filesystem+"@"+backup_name+"-[0-9]*$", snapshot):
+            (dummy, latest_snapshot)=snapshot.split("@")
+
+    return(latest_snapshot)
+
+
+
+
+selected_filesystems=get_selected_filesystems(args.ssh_source, args.backup_name)
+
+#nothing todo
+if not selected_filesystems:
+    error("No filesystems selected, please set autobackup:"+args.backup_name)
+    sys.exit(1)
+
+
+print(get_latest_snapshot(args.ssh_source, selected_filesystems[0], args.backup_name))
+
+# LATEST_REMOTE=`$REMOTE_CMD "zfs list -d 1 -r -t snapshot -H -o name $SRC 2>/dev/null"|grep @$SNAP_FORMAT- |tail -1`
+# LATEST_REMOTE_SNAPSHOT=@`echo $LATEST_REMOTE | cut -f2 -d@`
+# echo "Latest remote snapshot: $LATEST_REMOTE_SNAPSHOT"
 
