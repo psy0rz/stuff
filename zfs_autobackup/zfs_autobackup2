@@ -8,6 +8,8 @@ import re
 import traceback
 import subprocess
 import pprint
+import cStringIO
+import time
 
 ###### parse arguments
 import argparse
@@ -57,7 +59,12 @@ def run(cmd, ssh_to=None, tab_split=False):
     debug("# "+encoded_cmd[0]+" '"+("' '".join(encoded_cmd[1:]))+"'")
 
     if not args.test:
-        output=subprocess.check_output(encoded_cmd, env=os.environ)
+       # subprocess.check_call(encoded_cmd, env=os.environ)
+        p=subprocess.Popen(encoded_cmd, env=os.environ, stdout=subprocess.PIPE)
+        output=p.communicate()[0]
+        if p.returncode!=0:
+            raise(Exception("error while executing command"))
+
         lines=output.splitlines()
         if not tab_split:
             return(lines)
@@ -87,22 +94,22 @@ def get_selected_filesystems(ssh_to, backup_name):
     for source_filesystem in source_filesystems:
         (name,value,source)=source_filesystem
         if value=="false":
-            verbose("Ignoring: {} (disabled)".format(name))
+            verbose("Ignoring: {0} (disabled)".format(name))
 
         else:
             if source=="local":
                 selected_filesystems.append(name)
                 direct_filesystems.append(name)
-                verbose("Selected: {} (direct selection)".format(name))
+                verbose("Selected: {0} (direct selection)".format(name))
             elif source.find("inherited from ")==0:
                 inherited_from=re.sub("^inherited from ", "", source)
                 if inherited_from in direct_filesystems:
                     selected_filesystems.append(name)
-                    verbose("Selected: {} (inherited selection)".format(name))
+                    verbose("Selected: {0} (inherited selection)".format(name))
                 else:
-                    verbose("Ignored: {} (already a backup)".format(name))
+                    verbose("Ignored: {0} (already a backup)".format(name))
             else:
-                vebose("Ignored: {} ({})".format(source))
+                vebose("Ignored: {0} ({0})".format(source))
 
     return(selected_filesystems)
 
@@ -122,8 +129,19 @@ def get_latest_snapshot(ssh_to, filesystem, backup_name):
     return(latest_snapshot)
 
 
+"""create snapshot on multiple filesystems at once (atomicly)"""
+def create_snapshot(ssh_to, filesystems, snapshot):
+    cmd=[ "zfs", "snapshot" ]
 
 
+    for filesystem in filesystems:
+        cmd.append(filesystem+"@"+snapshot)
+
+    run(ssh_to=ssh_to, tab_split=False, cmd=cmd)
+
+################################################################## ENTRY POINT
+
+#get selected filesystem on backup source
 selected_filesystems=get_selected_filesystems(args.ssh_source, args.backup_name)
 
 #nothing todo
@@ -132,9 +150,13 @@ if not selected_filesystems:
     sys.exit(1)
 
 
-print(get_latest_snapshot(args.ssh_source, selected_filesystems[0], args.backup_name))
+#determine latest snapshot on source
+latest_source_snapshot=get_latest_snapshot(args.ssh_source, selected_filesystems[0], args.backup_name)
+verbose("Latest source snapshot: {0}".format(latest_source_snapshot))
 
-# LATEST_REMOTE=`$REMOTE_CMD "zfs list -d 1 -r -t snapshot -H -o name $SRC 2>/dev/null"|grep @$SNAP_FORMAT- |tail -1`
-# LATEST_REMOTE_SNAPSHOT=@`echo $LATEST_REMOTE | cut -f2 -d@`
-# echo "Latest remote snapshot: $LATEST_REMOTE_SNAPSHOT"
+#no snapshot? create new one
+if not latest_source_snapshot:
+    latest_source_snapshot=args.backup_name+"-"+str(time.gmtime(0))
+    create_snapshot(args.ssh_source, selected_filesystems, latest_source_snapshot)
+
 
