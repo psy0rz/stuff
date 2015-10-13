@@ -34,7 +34,7 @@ print("Sending data to Zabbix server")
 zabbix=pyZabbixSender.pyZabbixSender(server=args.server, port=args.port)
 
 #make current data "invalid", triggers are hold on current value if this is 0
-ret=zabbix.sendSingle(args.host, "nmap.last_scan", 0)
+ret=zabbix.sendSingle(args.host, "nmap.last_scan", 0, timestamp)
 if ret[0]:
 	raise(Exception(str(ret)))
 
@@ -45,18 +45,17 @@ for host in nmap_data["host"]:
 				#long uniq portstring for every port, also containts host, protocol and addrtype
 				port_string=host["address"][0]["addrtype"]+"/"+host["address"][0]["addr"]
 				port_string+="/"+port["protocol"]+"/"+port["portid"]
+				print(port_string)
 				# print (port_string)
 				zabbix_discovery_data["data"].append( {
 					 "{#PORT}": "'"+port_string+"'"
 					  } )
 
-				# zabbix_update_string+="- nmap.state[{}] 1\n".format(port_string)
-				# zabbix_data.append(zbxsend.Metric(args.host, "nmap.state[{}]".format(port_string), 1))
-				zabbix.addData(args.host, "nmap.state['{}']".format(port_string), timestamp)
+				zabbix.addData(args.host, "nmap.state['{0}']".format(port_string),timestamp)
 
 
 #send discovery and after that the items
-ret=zabbix.sendSingle(args.host, "nmap.discovery", json.dumps(zabbix_discovery_data))
+ret=zabbix.sendSingle(args.host, "nmap.discovery", json.dumps(zabbix_discovery_data), timestamp)
 if ret[0]:
 	raise(Exception(str(ret)))
 
@@ -65,7 +64,9 @@ print("Waiting for low-level-discovery update.")
 time.sleep(65)
 ret=zabbix.sendData()
 if ret[0][0]:
-	raise(Exception(str(ret)))
+    #ignore errors from disabled items:
+    #raise(Exception(str(ret)))
+    print("ERRORS while sending data, might be disabled items:", str(ret))
 
 
 #data is valid from now on, triggers can be recalculated
