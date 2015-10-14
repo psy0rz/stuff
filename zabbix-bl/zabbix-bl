@@ -3,6 +3,7 @@
 # Zabbix blacklist monitor.
 # Threading and blacklist check copied from https://github.com/egeland/nagios-rbl-check/blob/master/check_rbl.py
 # Zabbix stuff by edwin@datux.nl 
+# Sponsored by Spothost
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -33,7 +34,7 @@ import sys
 
 parser = argparse.ArgumentParser(
     formatter_class=argparse.RawTextHelpFormatter,
-    description='Zabbix blacklist monitor v1.0 (C)2015 edwin@datux.nl', 
+    description='Zabbix blacklist monitor v1.0 (C)2015 edwin@datux.nl Sponsored by Spothost', 
 	epilog="""
         This program checks ip adresses against blacklists creates a zabbix alert for each blacklisted ip. 
         For example: ./zabbix-bl --server my.zabbixserver.com --port 10052 --host servername_in_zabbix --blacklists blacklists.txt --ips ips.txt.
