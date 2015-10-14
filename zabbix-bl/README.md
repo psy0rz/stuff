@@ -1,4 +1,4 @@
-= Zabbix blacklist monitor =
+=Zabbix blacklist monitor=
 
 This program checks ip adresses against blacklists and creates a zabbix alert for each blacklisted ip entry. When the blacklisting is gone, the trigger status will be OK again. After this the trigger and items will be removed in 14 days.
 
