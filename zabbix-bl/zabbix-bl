@@ -1,0 +1,172 @@
+#!/usr/bin/python2
+
+# Zabbix blacklist monitor.
+# Threading and blacklist check copied from https://github.com/egeland/nagios-rbl-check/blob/master/check_rbl.py
+# Zabbix stuff by edwin@datux.nl 
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>
+#
+
+import argparse
+import json
+import time
+import pyZabbixSender
+import time
+# import subprocess
+import tempfile
+import threading
+import Queue
+import socket
+import sys
+
+
+parser = argparse.ArgumentParser(
+    formatter_class=argparse.RawTextHelpFormatter,
+    description='Zabbix blacklist monitor v1.0 (C)2015 edwin@datux.nl', 
+	epilog="""
+        This program checks ip adresses against blacklists creates a zabbix alert for each blacklisted ip. 
+        For example: ./zabbix-bl --server my.zabbixserver.com --port 10052 --host servername_in_zabbix --blacklists blacklists.txt --ips ips.txt.
+        Use this to generate a list of ipadresses: nmap -sL -n 1.2.3.4/27 -oN -|grep -v ^#| cut -f5 -d' '
+
+""")
+
+parser.add_argument('--host', required=True,help='Host the data belongs to. (this host should have the NMAP template)')
+parser.add_argument('--zabbix_server', required=True, help='Zabbix server')
+parser.add_argument('--port', default=10051, type=int, help='Zabbix port. Default %(default)s')
+parser.add_argument('--threads', default=100, type=int, help='Number of parallel threads. Default %(default)s')
+parser.add_argument('--speed', default=100, type=int, help='Max number of checks per second. Default %(default)s')
+parser.add_argument('--blacklists', required=True,help='Textfile with blacklists to check against')
+parser.add_argument('--ips', required=True,help='Textfile with ips adresses to check.')
+# parser.add_argument('nmap_params', nargs='+', help='Nmap parameters (in addition to -oX -)')
+args = parser.parse_args()
+
+
+#####
+on_blacklists = [] # (ip , blacklist) tuple
+
+class ThreadRBL(threading.Thread):
+    def __init__(self, queue):
+        threading.Thread.__init__(self)
+        self.queue = queue
+
+    def run(self):
+        while True:
+            # grab entry from queue
+            ( ip, blacklist ) = self.queue.get()
+
+
+            #create a DNSBL hostname
+            addr_parts = ip.split('.')
+            addr_parts.reverse()
+            check_host = ".".join(addr_parts) + "." + blacklist
+
+            print("{0} on {1}: checking".format(ip, blacklist))
+            #look it up
+            try:
+                check_addr = socket.gethostbyname(check_host)
+            except socket.error:
+                check_addr = None
+
+            if check_addr is not None and "127.0.0." in check_addr:
+                print("{0} on {1}: BLACKLISTED".format(ip, blacklist))
+                on_blacklists.append( (ip, blacklist) )
+            else:
+                print("{0} on {1}: done".format(ip, blacklist))
+
+            self.queue.task_done()
+
+
+
+################################################ do the blacklist check
+
+#initialize queue and start threads
+queue = Queue.Queue(args.threads)
+for i in range(args.threads):
+    t = ThreadRBL(queue)
+    t.daemon=True
+    t.start()
+
+
+# generate list of ( ips,blacklist ) to be checked. this list can be huge, but is limited to the queue size
+with open(args.blacklists) as fh:
+    blacklists=fh.readlines()
+
+
+
+total_checks=0
+start_time=time.time()
+
+with open(args.ips) as fh:
+    for ip in fh:
+        ip=ip.rstrip()
+        for blacklist in blacklists:
+            blacklist=blacklist.rstrip()
+            queue.put( (ip, blacklist) )
+
+            while total_checks /(time.time()-start_time)  > args.speed:
+                time.sleep(0.1)
+            total_checks=total_checks+1
+
+
+# wait on the queue until everything has been processed
+queue.join()
+
+
+################################################ send data to zabbix
+timestamp=str(int(time.mktime(time.localtime())))
+zabbix_discovery_data={ "data": [] }
+zabbix_update_string=""
+
+
+print("Sending data to Zabbix server")
+zabbix=pyZabbixSender.pyZabbixSender(server=args.zabbix_server, port=args.port)
+
+#make current data "invalid", triggers are hold on current value if this is 0
+ret=zabbix.sendSingle(args.host, "bl.last_scan", 0, timestamp)
+if ret[0]:
+	raise(Exception(str(ret)))
+
+
+for ( ip, blacklist ) in on_blacklists:
+    zabbix_discovery_data["data"].append( {
+         "{#IP}": ip,
+         "{#BLACKLIST}": blacklist
+          } )
+
+    zabbix.addData(args.host, "bl.seen[{0}_{1}]".format(ip, blacklist),timestamp)
+
+
+#send discovery and after that the items
+ret=zabbix.sendSingle(args.host, "bl.discovery", json.dumps(zabbix_discovery_data), timestamp)
+if ret[0]:
+	raise(Exception(str(ret)))
+
+#wait for lowlevel discovery item to become active
+print("Waiting for low-level-discovery update.")
+time.sleep(65)
+ret=zabbix.sendData()
+if ret[0][0]:
+    #ignore errors from disabled items:
+    #raise(Exception(str(ret)))
+    print("ERRORS while sending data, might be disabled items:", str(ret))
+
+
+#data is valid from now on, triggers can be recalculated
+ret=zabbix.sendSingle(args.host, "bl.last_scan", timestamp)
+if ret[0]:
+	raise(Exception(str(ret)))
+
+print("Done")
+
+
