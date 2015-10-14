@@ -1,7 +1,7 @@
 #!/usr/bin/python2
 
 # Zabbix blacklist monitor.
-# Threading and blacklist check copied from https://github.com/egeland/nagios-rbl-check/blob/master/check_rbl.py
+# Threading and blacklist check copied and modified from https://github.com/egeland/nagios-rbl-check/blob/master/check_rbl.py
 # Zabbix stuff by edwin@datux.nl 
 # Sponsored by Spothost
 
