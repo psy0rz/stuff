@@ -27,8 +27,6 @@ with tempfile.NamedTemporaryFile() as tmp_file:
 
 timestamp=str(int(time.mktime(time.localtime())))
 zabbix_discovery_data={ "data": [] }
-zabbix_update_string=""
-
 
 print("Sending data to Zabbix server")
 zabbix=pyZabbixSender.pyZabbixSender(server=args.server, port=args.port)
