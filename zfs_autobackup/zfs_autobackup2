@@ -21,7 +21,7 @@ parser.add_argument('target_fs',    help='Target filesystem')
 
 parser.add_argument('--finish', action='store_true', help='dont create new snapshot, just finish sending current snapshots')
 parser.add_argument('--compress', action='store_true', help='use compression during zfs send/recv')
-parser.add_argument('--test', action='store_true', help='dont change anything, just show what would be done (this also enables verbose mode)')
+# parser.add_argument('--test', action='store_true', help='dont change anything, just show what would be done (this also enables verbose mode)')
 parser.add_argument('--verbose', action='store_true', help='verbose output')
 parser.add_argument('--debug', action='store_true', help='debug output (shows user details, decicions that are made and commands that are executed)')
 args = parser.parse_args()
@@ -59,27 +59,22 @@ def run(cmd, ssh_to=None, tab_split=False):
     #(most of the time it should be copypastable however.)
     debug("# "+encoded_cmd[0]+" '"+("' '".join(encoded_cmd[1:]))+"'")
 
-    if not args.test:
-       # subprocess.check_call(encoded_cmd, env=os.environ)
-        p=subprocess.Popen(encoded_cmd, env=os.environ, stdout=subprocess.PIPE)
-        output=p.communicate()[0]
-        if p.returncode!=0:
-            raise(Exception("error while executing command"))
+    # if not args.test:
+    # subprocess.check_call(encoded_cmd, env=os.environ)
+    p=subprocess.Popen(encoded_cmd, env=os.environ, stdout=subprocess.PIPE)
+    output=p.communicate()[0]
+    if p.returncode!=0:
+        raise(Exception("error while executing command"))
 
-        lines=output.splitlines()
-        if not tab_split:
-            return(lines)
-        else:
-            ret=[]
-            for line in lines:
-                ret.append(line.split("\t"))
-            return(ret)
+    lines=output.splitlines()
+    if not tab_split:
+        return(lines)
+    else:
+        ret=[]
+        for line in lines:
+            ret.append(line.split("\t"))
+        return(ret)
 
-#pipe stuff
-# p1 = Popen(["dmesg"], stdout=PIPE)
-# p2 = Popen(["grep", "hda"], stdin=p1.stdout, stdout=PIPE)
-# p1.stdout.close()  # Allow p1 to receive a SIGPIPE if p2 exits.
-# output = p2.communicate()[0]
 
 
 """determine filesystems that should be backupped by looking at the special autobackup-property"""
@@ -139,21 +134,6 @@ def zfs_get_snapshots(ssh_to, filesystems, backup_name):
 
 
 
-# """latest snapshot-name for a filesystem and backup_name"""
-# def get_latest_snapshot(ssh_to, filesystem, backup_name):
-#     snapshots=run(ssh_to=ssh_to, tab_split=False, cmd=[
-#             "zfs", "list", "-d", "1", "-r", "-t" ,"snapshot", "-H", "-o", "name", filesystem
-#         ])
-
-#     latest_snapshot=None
-#     # pprint.pprint(snapshots)
-#     for snapshot in snapshots:
-#         if re.match("^"+filesystem+"@"+backup_name+"-[0-9]*$", snapshot):
-#             (dummy, latest_snapshot)=snapshot.split("@")
-
-#     return(latest_snapshot)
-
-
 """create snapshot on multiple filesystems at once (atomicly)"""
 def zfs_create_snapshot(ssh_to, filesystems, snapshot):
     cmd=[ "zfs", "snapshot" ]
@@ -165,14 +145,61 @@ def zfs_create_snapshot(ssh_to, filesystems, snapshot):
     run(ssh_to=ssh_to, tab_split=False, cmd=cmd)
 
 
-
+"""transfer a zfs snapshot from source to target. both can be either local or via ssh."""
 def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
                  ssh_target, target_filesystem):
+
+    #### make sure parent on target exists
+    parent_file_system= "/".join(target_filesystem.split("/")[:-1])
+    run(ssh_to=ssh_target, cmd=[ "zfs", "create" ,"-p", parent_file_system ])
+
+
+    #### build source command
+    source_cmd=[]
+
+    if ssh_source:
+        source_cmd.extend([ "ssh", ssh_source ])
+
+    source_cmd.extend(["zfs", "send", "-p" ])
+
+    if args.verbose:
+        source_cmd.append("-v")
 
     if not first_snapshot:
         verbose("Tranferring "+source_filesystem+" inital backup snapshot "+second_snapshot)
     else:
         verbose("Tranferring "+source_filesystem+" incremental backup between snapshots "+first_snapshot+"..."+second_snapshot)
+        source_cmd.extend([ "-i", first_snapshot ])
+
+    source_cmd.append(source_filesystem + "@" + second_snapshot)
+
+
+    #### build target command
+    target_cmd=[]
+
+    if ssh_target:
+        target_cmd.extend([ "ssh", ssh_target ])
+
+    target_cmd.extend(["zfs", "recv", "-u" ])
+
+    if args.verbose:
+        target_cmd.append("-v")
+
+    target_cmd.append(target_filesystem)
+
+    ### execute pipe
+    debug("# "+source_cmd[0]+" '"+("' '".join(source_cmd[1:]))+"'" + " | " + target_cmd[0]+" '"+("' '".join(target_cmd[1:]))+"'")
+
+    source_proc=subprocess.Popen(source_cmd, env=os.environ, stdout=subprocess.PIPE)
+    target_proc=subprocess.Popen(target_cmd, env=os.environ, stdin=source_proc.stdout)
+    source_proc.stdout.close() # Allow p1 to receive a SIGPIPE if p2 exits.
+    target_proc.communicate()
+
+    if source_proc.returncode!=0 or target_proc.returncode!=0:
+        raise(Exception("error while executing command"))
+
+
+
 
 ################################################################## ENTRY POINT
 
@@ -235,7 +262,7 @@ for source_filesystem in source_filesystems:
         latest_target_snapshot=send_snapshot
 
 
-
+verbose("All done")
 
 
 
