@@ -41,7 +41,7 @@ def debug(txt):
 
 
 """run a command. specifiy ssh user@host to run remotely"""
-def run(cmd, ssh_to=None, tab_split=False):
+def run(cmd, ssh_to=None, tab_split=False, valid_exitcodes=[ 0 ]):
 
     encoded_cmd=[]
 
@@ -63,7 +63,7 @@ def run(cmd, ssh_to=None, tab_split=False):
     # subprocess.check_call(encoded_cmd, env=os.environ)
     p=subprocess.Popen(encoded_cmd, env=os.environ, stdout=subprocess.PIPE)
     output=p.communicate()[0]
-    if p.returncode!=0:
+    if p.returncode not in valid_exitcodes:
         raise(Exception("error while executing command"))
 
     lines=output.splitlines()
@@ -120,7 +120,7 @@ def zfs_get_snapshots(ssh_to, filesystems, backup_name):
     ]
     cmd.extend(filesystems)
 
-    snapshots=run(ssh_to=ssh_to, tab_split=False, cmd=cmd)
+    snapshots=run(ssh_to=ssh_to, tab_split=False, cmd=cmd, valid_exitcodes=[ 0,1 ])
 
     ret={}
     for snapshot in snapshots:
