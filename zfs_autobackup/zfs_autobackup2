@@ -15,10 +15,11 @@ import time
 import argparse
 parser = argparse.ArgumentParser(description='ZFS autobackup v2.0')
 parser.add_argument('--ssh-source', default=None, help='Source host to get backup from. (user@hostname) Default is local.')
-parser.add_argument('--ssh-target', default=None, help='Source target to push backup to. (user@hostname) Default is local.')
+parser.add_argument('--ssh-target', default=None, help='Target host to push backup to. (user@hostname) Default is local.')
 parser.add_argument('backup_name',    help='Name of the backup (you should set the zfs property "autobackup:backup-name" to true on filesystems you want to backup')
 parser.add_argument('target_fs',    help='Target filesystem')
 
+parser.add_argument('--finish', action='store_true', help='dont create new snapshot, just finish sending current snapshots')
 parser.add_argument('--compress', action='store_true', help='use compression during zfs send/recv')
 parser.add_argument('--test', action='store_true', help='dont change anything, just show what would be done (this also enables verbose mode)')
 parser.add_argument('--verbose', action='store_true', help='verbose output')
@@ -82,7 +83,7 @@ def run(cmd, ssh_to=None, tab_split=False):
 
 
 """determine filesystems that should be backupped by looking at the special autobackup-property"""
-def get_selected_filesystems(ssh_to, backup_name):
+def zfs_get_selected_filesystems(ssh_to, backup_name):
     #get all source filesystems that have the backup property
     source_filesystems=run(ssh_to=ssh_to, tab_split=True, cmd=[
         "zfs", "get", "-t",  "volume,filesystem", "-o", "name,value,source", "-s", "local,inherited", "-H", "autobackup:"+backup_name
@@ -114,23 +115,47 @@ def get_selected_filesystems(ssh_to, backup_name):
     return(selected_filesystems)
 
 
-"""latest snapshot-name for a filesystem and backup_name"""
-def get_latest_snapshot(ssh_to, filesystem, backup_name):
-    snapshots=run(ssh_to=ssh_to, tab_split=False, cmd=[
-            "zfs", "list", "-d", "1", "-r", "-t" ,"snapshot", "-H", "-o", "name", filesystem
-        ])
+"""get names of all snapshots for specified filesystems belonging to backup_name
 
-    latest_snapshot=None
-    # pprint.pprint(snapshots)
+return[filesystem_name]=[ "snashot1", "snapshot2", ... ]
+"""
+def zfs_get_snapshots(ssh_to, filesystems, backup_name):
+    cmd=[
+        "zfs", "list", "-d", "1", "-r", "-t" ,"snapshot", "-H", "-o", "name"
+    ]
+    cmd.extend(filesystems)
+
+    snapshots=run(ssh_to=ssh_to, tab_split=False, cmd=cmd)
+
+    ret={}
     for snapshot in snapshots:
-        if re.match("^"+filesystem+"@"+backup_name+"-[0-9]*$", snapshot):
-            (dummy, latest_snapshot)=snapshot.split("@")
+        (file_system, snapshot_name)=snapshot.split("@")
+        if re.match("^"+backup_name+"-[0-9]*$", snapshot_name):
+            if not file_system in ret:
+                ret[file_system]=[]
+            ret[file_system].append(snapshot_name)
 
-    return(latest_snapshot)
+    return(ret)
+
+
+
+# """latest snapshot-name for a filesystem and backup_name"""
+# def get_latest_snapshot(ssh_to, filesystem, backup_name):
+#     snapshots=run(ssh_to=ssh_to, tab_split=False, cmd=[
+#             "zfs", "list", "-d", "1", "-r", "-t" ,"snapshot", "-H", "-o", "name", filesystem
+#         ])
+
+#     latest_snapshot=None
+#     # pprint.pprint(snapshots)
+#     for snapshot in snapshots:
+#         if re.match("^"+filesystem+"@"+backup_name+"-[0-9]*$", snapshot):
+#             (dummy, latest_snapshot)=snapshot.split("@")
+
+#     return(latest_snapshot)
 
 
 """create snapshot on multiple filesystems at once (atomicly)"""
-def create_snapshot(ssh_to, filesystems, snapshot):
+def zfs_create_snapshot(ssh_to, filesystems, snapshot):
     cmd=[ "zfs", "snapshot" ]
 
 
@@ -139,24 +164,79 @@ def create_snapshot(ssh_to, filesystems, snapshot):
 
     run(ssh_to=ssh_to, tab_split=False, cmd=cmd)
 
+
+
+def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
+                 ssh_target, target_filesystem):
+
+    if not first_snapshot:
+        verbose("Tranferring "+source_filesystem+" inital backup snapshot "+second_snapshot)
+    else:
+        verbose("Tranferring "+source_filesystem+" incremental backup between snapshots "+first_snapshot+"..."+second_snapshot)
+
 ################################################################## ENTRY POINT
 
 #get selected filesystem on backup source
-selected_filesystems=get_selected_filesystems(args.ssh_source, args.backup_name)
+source_filesystems=zfs_get_selected_filesystems(args.ssh_source, args.backup_name)
 
 #nothing todo
-if not selected_filesystems:
+if not source_filesystems:
     error("No filesystems selected, please set autobackup:"+args.backup_name)
     sys.exit(1)
 
 
-#determine latest snapshot on source
-latest_source_snapshot=get_latest_snapshot(args.ssh_source, selected_filesystems[0], args.backup_name)
-verbose("Latest source snapshot: {0}".format(latest_source_snapshot))
+#determine target filesystems
+target_filesystems=[]
+for source_filesystem in source_filesystems:
+    target_filesystems.append(args.target_fs+"/"+source_filesystem)
 
-#no snapshot? create new one
-if not latest_source_snapshot:
-    latest_source_snapshot=args.backup_name+"-"+str(time.gmtime(0))
-    create_snapshot(args.ssh_source, selected_filesystems, latest_source_snapshot)
+#create new snapshot?
+if not args.finish:
+    new_snapshot_name=args.backup_name+"-"+time.strftime("%Y%m%d%H%M")
+    verbose("Creating snapshot: " + new_snapshot_name)
+    zfs_create_snapshot(args.ssh_source, source_filesystems, new_snapshot_name)
+
+#determine all snapshots of all selected filesystems on both source and target
+source_snapshots=zfs_get_snapshots(args.ssh_source, source_filesystems, args.backup_name)
+debug("Source snapshots: " + str(pprint.pformat(source_snapshots)))
+
+target_snapshots={}
+try:
+    target_snapshots=zfs_get_snapshots(args.ssh_target, target_filesystems, args.backup_name)
+except:
+    verbose("(ignoring errors, probably initial backup for this filesystem)")
+    pass
+debug("Target snapshots: " + str(pprint.pformat(target_snapshots)))
+
+
+#determine which snapshots to send for each filesystem
+for source_filesystem in source_filesystems:
+    target_filesystem=args.target_fs+"/"+source_filesystem
+    send_snapshots=source_snapshots[source_filesystem][:]
+
+    #remove snapshots that are already on target from send-list
+    if source_filesystem in target_snapshots and target_snapshots[source_filesystem]:
+        latest_target_snapshot=target_snapshots[source_filesystem][-1]
+
+        if latest_target_snapshot not in send_snapshots:
+            raise(Exception("Cant find latest target snapshot on source, did you destroy it accidently?"))
+
+        while latest_target_snapshot in send_snapshots:
+            send_snapshots.pop(0)
+    else:
+        latest_target_snapshot=None
+
+    #now actually send the snapshots
+    for send_snapshot in send_snapshots:
+        zfs_transfer(
+            ssh_source=args.ssh_source, source_filesystem=source_filesystem, first_snapshot=latest_target_snapshot, second_snapshot=send_snapshot,
+            ssh_target=args.ssh_target, target_filesystem=target_filesystem)
+
+        latest_target_snapshot=send_snapshot
+
+
+
+
+
 
 
