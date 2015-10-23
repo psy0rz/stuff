@@ -21,11 +21,13 @@ parser.add_argument('target_fs',    help='Target filesystem')
 
 parser.add_argument('--finish', action='store_true', help='dont create new snapshot, just finish sending current snapshots')
 parser.add_argument('--compress', action='store_true', help='use compression during zfs send/recv')
-# parser.add_argument('--test', action='store_true', help='dont change anything, just show what would be done (this also enables verbose mode)')
+parser.add_argument('--test', action='store_true', help='dont change anything, just show what would be done (this also enables verbose mode)')
 parser.add_argument('--verbose', action='store_true', help='verbose output')
 parser.add_argument('--debug', action='store_true', help='debug output (shows user details, decicions that are made and commands that are executed)')
 args = parser.parse_args()
 
+if args.test:
+    args.verbose=True
 
 def error(txt):
     print(txt, file=sys.stderr)
@@ -41,13 +43,15 @@ def debug(txt):
 
 
 """run a command. specifiy ssh user@host to run remotely"""
-def run(cmd, ssh_to=None, tab_split=False, valid_exitcodes=[ 0 ]):
+def run(cmd, ssh_to=None, tab_split=False, valid_exitcodes=[ 0 ], test=False):
 
     encoded_cmd=[]
 
     #use ssh?
     if ssh_to:
         encoded_cmd.extend(["ssh", ssh_to])
+        if args.compress:
+            encoded_cmd.append("-C")
 
     #make sure the command gets all the data in utf8 format:
     #(this is neccesary if LC_ALL=en_US.utf8 is not set in the environment)
@@ -57,14 +61,18 @@ def run(cmd, ssh_to=None, tab_split=False, valid_exitcodes=[ 0 ]):
     #the accurate way of displaying it whould be: print encoded_cmd
     #However, we use the more human-readable way, but this is not always properly escaped!
     #(most of the time it should be copypastable however.)
-    debug("# "+encoded_cmd[0]+" '"+("' '".join(encoded_cmd[1:]))+"'")
+    debug_txt="# "+encoded_cmd[0]+" '"+("' '".join(encoded_cmd[1:]))+"'"
 
-    # if not args.test:
-    # subprocess.check_call(encoded_cmd, env=os.environ)
+    if test:
+        debug("[TEST] "+debug_txt)
+        return
+    else:
+        debug(debug_txt)
+
     p=subprocess.Popen(encoded_cmd, env=os.environ, stdout=subprocess.PIPE)
     output=p.communicate()[0]
     if p.returncode not in valid_exitcodes:
-        raise(Exception("error while executing command"))
+        raise(Exception("error while executing command, exitcode="+str(p.returncode)))
 
     lines=output.splitlines()
     if not tab_split:
@@ -142,7 +150,7 @@ def zfs_create_snapshot(ssh_to, filesystems, snapshot):
     for filesystem in filesystems:
         cmd.append(filesystem+"@"+snapshot)
 
-    run(ssh_to=ssh_to, tab_split=False, cmd=cmd)
+    run(ssh_to=ssh_to, tab_split=False, cmd=cmd, test=args.test)
 
 
 """transfer a zfs snapshot from source to target. both can be either local or via ssh."""
@@ -151,7 +159,7 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
 
     #### make sure parent on target exists
     parent_file_system= "/".join(target_filesystem.split("/")[:-1])
-    run(ssh_to=ssh_target, cmd=[ "zfs", "create" ,"-p", parent_file_system ])
+    run(ssh_to=ssh_target, cmd=[ "zfs", "create" ,"-p", parent_file_system ], test=args.test)
 
 
     #### build source command
@@ -159,6 +167,8 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
 
     if ssh_source:
         source_cmd.extend([ "ssh", ssh_source ])
+        if args.compress:
+            source_cmd.append("-C")
 
     source_cmd.extend(["zfs", "send", "-p" ])
 
@@ -179,6 +189,8 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
 
     if ssh_target:
         target_cmd.extend([ "ssh", ssh_target ])
+        if args.compress:
+            target_cmd.append("-C")
 
     target_cmd.extend(["zfs", "recv", "-u" ])
 
@@ -187,16 +199,23 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
 
     target_cmd.append(target_filesystem)
 
+
     ### execute pipe
-    debug("# "+source_cmd[0]+" '"+("' '".join(source_cmd[1:]))+"'" + " | " + target_cmd[0]+" '"+("' '".join(target_cmd[1:]))+"'")
+    debug_txt="# "+source_cmd[0]+" '"+("' '".join(source_cmd[1:]))+"'" + " | " + target_cmd[0]+" '"+("' '".join(target_cmd[1:]))+"'"
+
+    if args.test:
+        debug("[TEST] "+debug_txt)
+        return
+    else:
+        debug(debug_txt)
 
     source_proc=subprocess.Popen(source_cmd, env=os.environ, stdout=subprocess.PIPE)
     target_proc=subprocess.Popen(target_cmd, env=os.environ, stdin=source_proc.stdout)
     source_proc.stdout.close() # Allow p1 to receive a SIGPIPE if p2 exits.
     target_proc.communicate()
 
-    if source_proc.returncode!=0 or target_proc.returncode!=0:
-        raise(Exception("error while executing command"))
+    if source_proc.returncode or target_proc.returncode:
+        raise(Exception("error while executing command source exitcode="+str(source_proc.returncode)+", target exitcode="+str(target_proc.returncode)))
 
 
 
@@ -219,16 +238,18 @@ for source_filesystem in source_filesystems:
 
 #create new snapshot?
 if not args.finish:
-    new_snapshot_name=args.backup_name+"-"+time.strftime("%Y%m%d%H%M")
+    new_snapshot_name=args.backup_name+"-"+time.strftime("%Y%m%d%H%M%S")
     verbose("Creating snapshot: " + new_snapshot_name)
     zfs_create_snapshot(args.ssh_source, source_filesystems, new_snapshot_name)
 
 #determine all snapshots of all selected filesystems on both source and target
+verbose("Getting source snapshot-list")
 source_snapshots=zfs_get_snapshots(args.ssh_source, source_filesystems, args.backup_name)
 debug("Source snapshots: " + str(pprint.pformat(source_snapshots)))
 
 target_snapshots={}
 try:
+    verbose("Getting target snapshot-list")
     target_snapshots=zfs_get_snapshots(args.ssh_target, target_filesystems, args.backup_name)
 except:
     verbose("(ignoring errors, probably initial backup for this filesystem)")
@@ -242,11 +263,11 @@ for source_filesystem in source_filesystems:
     send_snapshots=source_snapshots[source_filesystem][:]
 
     #remove snapshots that are already on target from send-list
-    if source_filesystem in target_snapshots and target_snapshots[source_filesystem]:
-        latest_target_snapshot=target_snapshots[source_filesystem][-1]
+    if target_filesystem in target_snapshots and target_snapshots[target_filesystem]:
+        latest_target_snapshot=target_snapshots[target_filesystem][-1]
 
         if latest_target_snapshot not in send_snapshots:
-            raise(Exception("Cant find latest target snapshot on source, did you destroy it accidently?"))
+            raise(Exception("Cant find latest target snapshot on source, did you destroy it accidently? "+target_filesystem+"@"+latest_target_snapshot))
 
         while latest_target_snapshot in send_snapshots:
             send_snapshots.pop(0)
