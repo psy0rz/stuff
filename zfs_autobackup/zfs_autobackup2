@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # -*- coding: utf8 -*- 
 
 from __future__ import print_function
@@ -14,8 +14,9 @@ import time
 ###### parse arguments
 import argparse
 parser = argparse.ArgumentParser(description='ZFS autobackup v2.0')
-parser.add_argument('--ssh-source', default=None, help='Source host to get backup from. (user@hostname) Default is local.')
-parser.add_argument('--ssh-target', default=None, help='Target host to push backup to. (user@hostname) Default is local.')
+parser.add_argument('--ssh-source', default="local", help='Source host to get backup from. (user@hostname) Default %(default)s.')
+parser.add_argument('--ssh-target', default="local", help='Target host to push backup to. (user@hostname) Default  %(default)s.')
+parser.add_argument('--ssh-cipher', default="arcfour128", help='SSH cipher to use (default  %(default)s)')
 parser.add_argument('backup_name',    help='Name of the backup (you should set the zfs property "autobackup:backup-name" to true on filesystems you want to backup')
 parser.add_argument('target_fs',    help='Target filesystem')
 
@@ -48,8 +49,8 @@ def run(cmd, ssh_to=None, tab_split=False, valid_exitcodes=[ 0 ], test=False):
     encoded_cmd=[]
 
     #use ssh?
-    if ssh_to:
-        encoded_cmd.extend(["ssh", ssh_to])
+    if ssh_to != "local":
+        encoded_cmd.extend(["ssh", "-c", args.ssh_cipher, ssh_to])
         if args.compress:
             encoded_cmd.append("-C")
 
@@ -72,7 +73,7 @@ def run(cmd, ssh_to=None, tab_split=False, valid_exitcodes=[ 0 ], test=False):
     p=subprocess.Popen(encoded_cmd, env=os.environ, stdout=subprocess.PIPE)
     output=p.communicate()[0]
     if p.returncode not in valid_exitcodes:
-        raise(Exception("error while executing command, exitcode="+str(p.returncode)))
+        raise(subprocess.CalledProcessError(p.returncode, encoded_cmd))
 
     lines=output.splitlines()
     if not tab_split:
@@ -157,16 +158,11 @@ def zfs_create_snapshot(ssh_to, filesystems, snapshot):
 def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
                  ssh_target, target_filesystem):
 
-    #### make sure parent on target exists
-    parent_file_system= "/".join(target_filesystem.split("/")[:-1])
-    run(ssh_to=ssh_target, cmd=[ "zfs", "create" ,"-p", parent_file_system ], test=args.test)
-
-
     #### build source command
     source_cmd=[]
 
-    if ssh_source:
-        source_cmd.extend([ "ssh", ssh_source ])
+    if ssh_source != "local":
+        source_cmd.extend([ "ssh", "-c", args.ssh_cipher, ssh_source ])
         if args.compress:
             source_cmd.append("-C")
 
@@ -176,7 +172,7 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
         source_cmd.append("-v")
 
     if not first_snapshot:
-        verbose("Tranferring "+source_filesystem+" inital backup snapshot "+second_snapshot)
+        verbose("Tranferring "+source_filesystem+" initial backup snapshot "+second_snapshot)
     else:
         verbose("Tranferring "+source_filesystem+" incremental backup between snapshots "+first_snapshot+"..."+second_snapshot)
         source_cmd.extend([ "-i", first_snapshot ])
@@ -187,8 +183,8 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
     #### build target command
     target_cmd=[]
 
-    if ssh_target:
-        target_cmd.extend([ "ssh", ssh_target ])
+    if ssh_target != "local":
+        target_cmd.extend([ "ssh", "-c", args.ssh_cipher, ssh_target ])
         if args.compress:
             target_cmd.append("-C")
 
@@ -198,6 +194,11 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
         target_cmd.append("-v")
 
     target_cmd.append(target_filesystem)
+
+
+    #### make sure parent on target exists
+    parent_file_system= "/".join(target_filesystem.split("/")[:-1])
+    run(ssh_to=ssh_target, cmd=[ "zfs", "create" ,"-p", parent_file_system ], test=args.test)
 
 
     ### execute pipe
@@ -214,20 +215,27 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
     source_proc.stdout.close() # Allow p1 to receive a SIGPIPE if p2 exits.
     target_proc.communicate()
 
-    if source_proc.returncode or target_proc.returncode:
-        raise(Exception("error while executing command source exitcode="+str(source_proc.returncode)+", target exitcode="+str(target_proc.returncode)))
+    if source_proc.returncode:
+        raise(subprocess.CalledProcessError(source_proc.returncode, source_cmd))
 
+    #zfs recv sometimes gives an exitcode 1 while the transfer was succesfull, therefore we ignore exit 1's and do an extra check to see if the snapshot is there.    
+    if target_proc.returncode and target_proc.returncode!=1:
+        raise(subprocess.CalledProcessError(target_proc.returncode, target_cmd))
 
+    debug("Verifying if snapshot exists on target")
+    run(ssh_to=ssh_target, cmd=["zfs", "list", target_filesystem+"@"+second_snapshot ])    
 
 
 ################################################################## ENTRY POINT
 
+
 #get selected filesystem on backup source
+verbose("Getting selected source filesystems for backup {0} on {1}".format(args.backup_name,args.ssh_source))
 source_filesystems=zfs_get_selected_filesystems(args.ssh_source, args.backup_name)
 
 #nothing todo
 if not source_filesystems:
-    error("No filesystems selected, please set autobackup:"+args.backup_name)
+    error("No filesystems source selected, please set autobackup:{0} on {1}".format(args.backup_name,args.ssh_source))
     sys.exit(1)
 
 
@@ -239,19 +247,19 @@ for source_filesystem in source_filesystems:
 #create new snapshot?
 if not args.finish:
     new_snapshot_name=args.backup_name+"-"+time.strftime("%Y%m%d%H%M%S")
-    verbose("Creating snapshot: " + new_snapshot_name)
+    verbose("Creating source snapshot {0} on {1} ".format(new_snapshot_name, args.ssh_source))
     zfs_create_snapshot(args.ssh_source, source_filesystems, new_snapshot_name)
 
 #determine all snapshots of all selected filesystems on both source and target
-verbose("Getting source snapshot-list")
+verbose("Getting source snapshot-list from {0}".format(args.ssh_source))
 source_snapshots=zfs_get_snapshots(args.ssh_source, source_filesystems, args.backup_name)
 debug("Source snapshots: " + str(pprint.pformat(source_snapshots)))
 
 target_snapshots={}
 try:
-    verbose("Getting target snapshot-list")
+    verbose("Getting target snapshot-list from {0}".format(args.ssh_target))
     target_snapshots=zfs_get_snapshots(args.ssh_target, target_filesystems, args.backup_name)
-except:
+except subprocess.CalledProcessError:
     verbose("(ignoring errors, probably initial backup for this filesystem)")
     pass
 debug("Target snapshots: " + str(pprint.pformat(target_snapshots)))
@@ -260,27 +268,33 @@ debug("Target snapshots: " + str(pprint.pformat(target_snapshots)))
 #determine which snapshots to send for each filesystem
 for source_filesystem in source_filesystems:
     target_filesystem=args.target_fs+"/"+source_filesystem
-    send_snapshots=source_snapshots[source_filesystem][:]
 
-    #remove snapshots that are already on target from send-list
-    if target_filesystem in target_snapshots and target_snapshots[target_filesystem]:
-        latest_target_snapshot=target_snapshots[target_filesystem][-1]
-
-        if latest_target_snapshot not in send_snapshots:
-            raise(Exception("Cant find latest target snapshot on source, did you destroy it accidently? "+target_filesystem+"@"+latest_target_snapshot))
-
-        while latest_target_snapshot in send_snapshots:
-            send_snapshots.pop(0)
+    if source_filesystem not in source_snapshots:
+        #this happens if you use --finish and there are new filesystems without snapshots
+        verbose("Skipping source file_system {0}, no snapshots found".format(source_filesystem))
     else:
-        latest_target_snapshot=None
 
-    #now actually send the snapshots
-    for send_snapshot in send_snapshots:
-        zfs_transfer(
-            ssh_source=args.ssh_source, source_filesystem=source_filesystem, first_snapshot=latest_target_snapshot, second_snapshot=send_snapshot,
-            ssh_target=args.ssh_target, target_filesystem=target_filesystem)
+        send_snapshots=source_snapshots[source_filesystem][:]
 
-        latest_target_snapshot=send_snapshot
+        #remove snapshots that are already on target from send-list
+        if target_filesystem in target_snapshots and target_snapshots[target_filesystem]:
+            latest_target_snapshot=target_snapshots[target_filesystem][-1]
+
+            if latest_target_snapshot not in send_snapshots:
+                raise(Exception("Cant find latest target snapshot on source, did you destroy it accidently? "+source_filesystem+"@"+latest_target_snapshot))
+
+            while latest_target_snapshot in send_snapshots:
+                send_snapshots.pop(0)
+        else:
+            latest_target_snapshot=None
+
+        #now actually send the snapshots
+        for send_snapshot in send_snapshots:
+            zfs_transfer(
+                ssh_source=args.ssh_source, source_filesystem=source_filesystem, first_snapshot=latest_target_snapshot, second_snapshot=send_snapshot,
+                ssh_target=args.ssh_target, target_filesystem=target_filesystem)
+
+            latest_target_snapshot=send_snapshot
 
 
 verbose("All done")
