@@ -22,25 +22,26 @@ parser.add_argument('target_fs',    help='Target filesystem')
 
 parser.add_argument('--finish', action='store_true', help='dont create new snapshot, just finish sending current snapshots')
 parser.add_argument('--compress', action='store_true', help='use compression during zfs send/recv')
-parser.add_argument('--test', action='store_true', help='dont change anything, just show what would be done (this also enables verbose mode)')
+parser.add_argument('--test', action='store_true', help='dont change anything, just show what would be done (still does all read-only operations)')
 parser.add_argument('--verbose', action='store_true', help='verbose output')
 parser.add_argument('--debug', action='store_true', help='debug output (shows user details, decicions that are made and commands that are executed)')
 args = parser.parse_args()
 
-if args.test:
-    args.verbose=True
 
 def error(txt):
     print(txt, file=sys.stderr)
+
+
 
 def verbose(txt):
     if args.verbose:
         print(txt)
 
+
+
 def debug(txt):
     if args.debug:
         print(txt)
-
 
 
 """run a command. specifiy ssh user@host to run remotely"""
@@ -119,6 +120,29 @@ def zfs_get_selected_filesystems(ssh_to, backup_name):
     return(selected_filesystems)
 
 
+#simulate snapshots for --test option
+test_snapshots={}
+
+
+"""create snapshot on multiple filesystems at once (atomicly)"""
+def zfs_create_snapshot(ssh_to, filesystems, snapshot):
+    cmd=[ "zfs", "snapshot" ]
+
+    for filesystem in filesystems:
+        cmd.append(filesystem+"@"+snapshot)
+
+        #in testmode we dont actually make changes, so keep them in a list to simulate
+        if args.test:
+            if not ssh_to in test_snapshots:
+                test_snapshots[ssh_to]={}
+            if not filesystem in test_snapshots[ssh_to]:
+                test_snapshots[ssh_to][filesystem]=[]
+            test_snapshots[ssh_to][filesystem].append(snapshot)
+
+    run(ssh_to=ssh_to, tab_split=False, cmd=cmd, test=args.test)
+
+
+
 """get names of all snapshots for specified filesystems belonging to backup_name
 
 return[filesystem_name]=[ "snashot1", "snapshot2", ... ]
@@ -133,25 +157,21 @@ def zfs_get_snapshots(ssh_to, filesystems, backup_name):
 
     ret={}
     for snapshot in snapshots:
-        (file_system, snapshot_name)=snapshot.split("@")
+        (filesystem, snapshot_name)=snapshot.split("@")
         if re.match("^"+backup_name+"-[0-9]*$", snapshot_name):
-            if not file_system in ret:
-                ret[file_system]=[]
-            ret[file_system].append(snapshot_name)
+            if not filesystem in ret:
+                ret[filesystem]=[]
+            ret[filesystem].append(snapshot_name)
+
+    #also add any test-snapshots that where created with --test mode
+    if args.test:
+        if ssh_to in test_snapshots:
+            for filesystem in filesystems:
+                if filesystem in test_snapshots[ssh_to]:
+                    ret[filesystem].extend(test_snapshots[ssh_to][filesystem])
 
     return(ret)
 
-
-
-"""create snapshot on multiple filesystems at once (atomicly)"""
-def zfs_create_snapshot(ssh_to, filesystems, snapshot):
-    cmd=[ "zfs", "snapshot" ]
-
-
-    for filesystem in filesystems:
-        cmd.append(filesystem+"@"+snapshot)
-
-    run(ssh_to=ssh_to, tab_split=False, cmd=cmd, test=args.test)
 
 
 """transfer a zfs snapshot from source to target. both can be either local or via ssh."""
@@ -197,8 +217,8 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
 
 
     #### make sure parent on target exists
-    parent_file_system= "/".join(target_filesystem.split("/")[:-1])
-    run(ssh_to=ssh_target, cmd=[ "zfs", "create" ,"-p", parent_file_system ], test=args.test)
+    parent_filesystem= "/".join(target_filesystem.split("/")[:-1])
+    run(ssh_to=ssh_target, cmd=[ "zfs", "create" ,"-p", parent_filesystem ], test=args.test)
 
 
     ### execute pipe
@@ -226,8 +246,12 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
     run(ssh_to=ssh_target, cmd=["zfs", "list", target_filesystem+"@"+second_snapshot ])    
 
 
+
 ################################################################## ENTRY POINT
 
+if args.test:
+    args.verbose=True
+    verbose("RUNNING IN TEST-MODE, NOT MAKING ACTUAL BACKUP!")
 
 #get selected filesystem on backup source
 verbose("Getting selected source filesystems for backup {0} on {1}".format(args.backup_name,args.ssh_source))
@@ -271,7 +295,7 @@ for source_filesystem in source_filesystems:
 
     if source_filesystem not in source_snapshots:
         #this happens if you use --finish and there are new filesystems without snapshots
-        verbose("Skipping source file_system {0}, no snapshots found".format(source_filesystem))
+        verbose("Skipping source filesystem {0}, no snapshots found".format(source_filesystem))
     else:
 
         send_snapshots=source_snapshots[source_filesystem][:]
@@ -298,7 +322,4 @@ for source_filesystem in source_filesystems:
 
 
 verbose("All done")
-
-
-
 
