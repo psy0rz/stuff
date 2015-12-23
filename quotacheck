@@ -85,7 +85,7 @@ for config_file in config_files:
     with open(config_file) as config_lines:
         for config_line in config_lines:
                 # info:xxxx:601:12::/home/username/imap/domain.com/mailbox:/bin/false
-                ( user, passwd, uid, guid, bla, maildir, shell ) = config_line.split(":")
+                ( user, passwd, uid, guid, bla, maildir, shell ) = config_line.split(":", 6)
 
                 if quotas[user]==0:
                         continue
