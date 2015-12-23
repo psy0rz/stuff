@@ -1,0 +1,102 @@
+#!/usr/bin/env python
+# -*- coding: utf8 -*- 
+
+#(C)2015 edwin@datux.nl - Released under GPL
+#Directadmin mailbox quota check
+#This will check all mailboxes and output a line to stderr when someone is over quota.
+
+from __future__ import print_function
+import os
+import sys
+import re
+
+import glob
+import subprocess
+
+
+def debug(txt):
+        return
+        print(txt)
+
+"""run a command. specifiy ssh user@host to run remotely"""
+def run(cmd, input=None,  tab_split=False, valid_exitcodes=[ 0 ], test=False):
+
+    encoded_cmd=[]
+
+    #make sure the command gets all the data in utf8 format:
+    #(this is neccesary if LC_ALL=en_US.utf8 is not set in the environment)
+    for arg in cmd:
+        encoded_cmd.append(arg.encode('utf-8'))
+    #the accurate way of displaying it whould be: print encoded_cmd
+    #However, we use the more human-readable way, but this is not always properly escaped!
+    #(most of the time it should be copypastable however.)
+    debug_txt="# "+encoded_cmd[0]+" '"+("' '".join(encoded_cmd[1:]))+"'"
+
+    if test:
+        debug("[TEST] "+debug_txt)
+    else:
+        debug(debug_txt)
+
+    if input:
+        debug("INPUT:\n"+input.rstrip())
+        stdin=subprocess.PIPE
+    else:
+        stdin=None
+
+    if test:
+        return
+
+    p=subprocess.Popen(encoded_cmd, env=os.environ, stdout=subprocess.PIPE, stdin=stdin)
+    output=p.communicate(input=input)[0]
+    if p.returncode not in valid_exitcodes:
+        raise(subprocess.CalledProcessError(p.returncode, encoded_cmd))
+
+    lines=output.splitlines()
+    if not tab_split:
+        return(lines)
+    else:
+        ret=[]
+        for line in lines:
+            ret.append(line.split("\t"))
+        return(ret)
+
+
+
+config_files=glob.glob("/etc/virtual/*/passwd")
+
+for config_file in config_files:
+    #print(config_file)
+    parts=config_file.split("/")
+    #print(parts)
+    domain=parts[3]
+
+    print("Domain:", domain)
+
+    quotas={}
+    try:
+            with open("/etc/virtual/"+domain+"/quota") as config_lines:
+                for config_line in config_lines:
+                        #print(config_line)
+                        ( user, quota ) = config_line.split(":")
+                        quotas[user]=float(quota)/1000000
+    except:
+        pass
+
+    with open(config_file) as config_lines:
+        for config_line in config_lines:
+                # info:xxxx:601:12::/home/username/imap/domain.com/mailbox:/bin/false
+                ( user, passwd, uid, guid, bla, maildir, shell ) = config_line.split(":")
+
+                if quotas[user]==0:
+                        continue
+
+                #print ("Calculating",user)
+                du=run(cmd=[ "du", "-s", maildir ],  tab_split=True )
+                used=float(du[0][0])/1000
+                print (user+"@"+domain, used, quotas[user])
+
+                if used > quotas[user]:
+                        
+                        print("{0}@{1} is over quota: {2}/{3} Mb".format(user,domain, used, quotas[user]), file=sys.stderr)
+
+

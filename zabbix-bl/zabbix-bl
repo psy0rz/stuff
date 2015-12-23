@@ -43,7 +43,7 @@ parser = argparse.ArgumentParser(
 """)
 
 parser.add_argument('--host', required=True,help='Host the data belongs to. (this host should have the NMAP template)')
-parser.add_argument('--zabbix_server', required=True, help='Zabbix server')
+parser.add_argument('--zabbix_server', required=True, help='Zabbix server (use none to just print the blacklists instead of sending to zabbix)')
 parser.add_argument('--port', default=10051, type=int, help='Zabbix port. Default %(default)s')
 parser.add_argument('--threads', default=100, type=int, help='Number of parallel threads. Default %(default)s')
 parser.add_argument('--speed', default=100, type=int, help='Max number of checks per second. Default %(default)s')
@@ -123,6 +123,9 @@ with open(args.ips) as fh:
 # wait on the queue until everything has been processed
 queue.join()
 
+if args.zabbix_server=='none':
+	print(on_blacklists)
+	sys.exit(0)
 
 ################################################ send data to zabbix
 timestamp=str(int(time.mktime(time.localtime())))
