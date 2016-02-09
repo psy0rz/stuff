@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <zabbix_export>
     <version>2.0</version>
-    <date>2014-08-27T09:30:01Z</date>
+    <date>2016-02-09T13:19:12Z</date>
     <groups>
         <group>
             <name>Templates</name>
@@ -16,7 +16,11 @@
                     <name>Templates</name>
                 </group>
             </groups>
-            <applications/>
+            <applications>
+                <application>
+                    <name>Jobs</name>
+                </application>
+            </applications>
             <items/>
             <discovery_rules>
                 <discovery_rule>
@@ -83,8 +87,13 @@
                             <port/>
                             <description/>
                             <inventory_link>0</inventory_link>
-                            <applications/>
+                            <applications>
+                                <application>
+                                    <name>Jobs</name>
+                                </application>
+                            </applications>
                             <valuemap/>
+                            <logtimefmt/>
                         </item_prototype>
                     </item_prototypes>
                     <trigger_prototypes>
@@ -104,6 +113,15 @@
                             <status>0</status>
                             <priority>3</priority>
                             <description>Daily job {#JOBNAME} should report at least every 2 days.</description>
+                            <type>0</type>
+                        </trigger_prototype>
+                        <trigger_prototype>
+                            <expression>{Template job monitor:job.exit_daily[{#JOBNAME}].min(7d)}#0</expression>
+                            <name>Last succesfull daily job {#JOBNAME} on {HOSTNAME} was longer than a week ago.</name>
+                            <url/>
+                            <status>0</status>
+                            <priority>4</priority>
+                            <description>The job daily job didnt run succesfull for more than 7 days.</description>
                             <type>0</type>
                         </trigger_prototype>
                     </trigger_prototypes>
@@ -174,8 +192,13 @@
                             <port/>
                             <description/>
                             <inventory_link>0</inventory_link>
-                            <applications/>
+                            <applications>
+                                <application>
+                                    <name>Jobs</name>
+                                </application>
+                            </applications>
                             <valuemap/>
+                            <logtimefmt/>
                         </item_prototype>
                     </item_prototypes>
                     <trigger_prototypes>
@@ -195,6 +218,15 @@
                             <status>0</status>
                             <priority>3</priority>
                             <description>Hourly job {#JOBNAME} should report at least every 120 minutes.</description>
+                            <type>0</type>
+                        </trigger_prototype>
+                        <trigger_prototype>
+                            <expression>{Template job monitor:job.exit_hourly[{#JOBNAME}].min(1d)}#0</expression>
+                            <name>Last succesfull hourly job {#JOBNAME} on {HOSTNAME} was longer than a day ago.</name>
+                            <url/>
+                            <status>0</status>
+                            <priority>4</priority>
+                            <description>There was no succesfull job for more than 24 hours.</description>
                             <type>0</type>
                         </trigger_prototype>
                     </trigger_prototypes>
@@ -265,8 +297,13 @@
                             <port/>
                             <description/>
                             <inventory_link>0</inventory_link>
-                            <applications/>
+                            <applications>
+                                <application>
+                                    <name>Jobs</name>
+                                </application>
+                            </applications>
                             <valuemap/>
+                            <logtimefmt/>
                         </item_prototype>
                     </item_prototypes>
                     <trigger_prototypes>
@@ -347,8 +384,13 @@
                             <port/>
                             <description/>
                             <inventory_link>0</inventory_link>
-                            <applications/>
+                            <applications>
+                                <application>
+                                    <name>Jobs</name>
+                                </application>
+                            </applications>
                             <valuemap/>
+                            <logtimefmt/>
                         </item_prototype>
                     </item_prototypes>
                     <trigger_prototypes>
@@ -368,6 +410,15 @@
                             <status>0</status>
                             <priority>3</priority>
                             <description>Montly job {#JOBNAME} should report at least every 33 days.</description>
+                            <type>0</type>
+                        </trigger_prototype>
+                        <trigger_prototype>
+                            <expression>{Template job monitor:job.exit_montly[{#JOBNAME}].min(13m)}#0</expression>
+                            <name>Last succesfull montly job {#JOBNAME} on {HOSTNAME} was longer than 3 months ago.</name>
+                            <url/>
+                            <status>0</status>
+                            <priority>4</priority>
+                            <description>There was no succesfull job for the last 13 weeks.</description>
                             <type>0</type>
                         </trigger_prototype>
                     </trigger_prototypes>
@@ -438,8 +489,13 @@
                             <port/>
                             <description/>
                             <inventory_link>0</inventory_link>
-                            <applications/>
+                            <applications>
+                                <application>
+                                    <name>Jobs</name>
+                                </application>
+                            </applications>
                             <valuemap/>
+                            <logtimefmt/>
                         </item_prototype>
                     </item_prototypes>
                     <trigger_prototypes>
@@ -450,6 +506,15 @@
                             <status>0</status>
                             <priority>3</priority>
                             <description/>
+                            <type>0</type>
+                        </trigger_prototype>
+                        <trigger_prototype>
+                            <expression>{Template job monitor:job.exit_weekly[{#JOBNAME}].min(1m)}#0</expression>
+                            <name>Last succesfull weekly job {#JOBNAME} on {HOSTNAME} was longer than a month ago.</name>
+                            <url/>
+                            <status>0</status>
+                            <priority>4</priority>
+                            <description>There was no succesfull job for the last 4 weeks.</description>
                             <type>0</type>
                         </trigger_prototype>
                         <trigger_prototype>
