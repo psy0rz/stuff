@@ -1,4 +1,5 @@
 #!/bin/bash
+#(C) 2016 edwin@datux.nl - Released under GPL
 JOBDIR=/etc/zabbix/zabbix.jobs
 ZABBIX_CONF=/etc/zabbix/zabbix_agentd.conf
 
