@@ -14,9 +14,11 @@ Installing
 2. create a host in zabbix that is linked to this template. call this host "blacklistchecker".
 3. create a file ips.txt that contain the ip adresses you want to check. you can also use CIDR notation in this file, for example: 1.2.3.0/24
 4. try running the script manually to see if it works:
+```
  ./zabbix-bl --zabbix_server 1.2.3.4 --host blacklistchecker --blacklists blacklists.txt --ips ips.txt 
- 
-5. if it works, create a cronjob that will run the script automaticly.
+```
+
+If it works, create a cronjob that will run the script automaticly.
 
 
 
