@@ -1,0 +1,26 @@
+#!/bin/bash
+#(C) edwin@datux.nl - Tests if a site has changed compared to the previous check.
+#I use this to check if something broke after a server update or config-management update.
+
+SITES=`sed -n  's/.*server_name \(.*\);/\1/p' /etc/nginx/conf.d/*conf|sort|uniq`
+
+mkdir sitetest.tmp 2>/dev/null
+for SITE in $SITES; do 
+    FIRST="sitetest.tmp/$SITE.first"
+    NEW="sitetest.tmp/$SITE.new"
+    COOKIES="sitetest.tmp/$SITE.cookies"
+    URL="http://$SITE"
+    if ! [ -e "$FIRST" ]; then
+        echo "############################################# Saving $SITE"
+        OUTPUT="$FIRST"
+    else 
+        echo "############################################# Verifying $SITE"
+        OUTPUT="$NEW"
+    fi
+    curl -b "$COOKIES" -c "$COOKIES"  -s -L  "$URL" > "$OUTPUT" || exit 1
+    
+    if [ -e "$NEW" ]; then 
+        diff <( cat "$FIRST" | sed 's/^ *//g' | sort | uniq ) <( cat "$NEW" | sed 's/^ *//g' | sort | uniq )
+    fi
+done
+
