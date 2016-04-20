@@ -1,0 +1,29 @@
+#!/usr/bin/python
+#(C)2016 edwin@datux.nl
+
+import sys
+import datetime
+from ftplib import FTP
+
+try:
+    ftp=FTP(sys.argv[1], sys.argv[2], sys.argv[3])
+    ftp.set_pasv(True)
+
+    #get mtime as string
+    l=ftp.sendcmd('mdtm '+sys.argv[4])
+    (bla, time_str)=l.split(" ")
+    #print(time_str) #20160201134730
+
+    #parse to datetime object
+    mtime=datetime.datetime.strptime(time_str, "%Y%m%d%H%M%S")
+    now=datetime.datetime.today()
+
+    #print(mtime,now, (now-mtime).total_seconds())
+
+    #print age
+    print(int((now-mtime).total_seconds()))
+except Exception as e:
+    print (str(e))
+
+
+
