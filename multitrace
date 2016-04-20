@@ -31,7 +31,11 @@ for ttl in range(1,args.max_hops+1):
     answers,unans=sr(
         [ 
             IP(dst=args.host, ttl=ttl)/UDP(dport=44443+ttl),
+            IP(dst=args.host, ttl=ttl)/UDP(dport=53),
             IP(dst=args.host, ttl=ttl)/TCP(dport=44443+ttl, flags="S"),
+            IP(dst=args.host, ttl=ttl)/TCP(dport=80, flags="S"),
+            IP(dst=args.host, ttl=ttl)/TCP(dport=135, flags="S"),
+            IP(dst=args.host, ttl=ttl)/TCP(dport=25, flags="S"),
             IP(dst=args.host, ttl=ttl)/ICMP(),
         ],
         timeout=args.timeout, inter=args.interval, verbose=0
@@ -39,7 +43,7 @@ for ttl in range(1,args.max_hops+1):
 
 
     for snd, recv in answers:
-        print(" ",recv.summary())
+        print(" ",snd.summary(), recv.summary())
         if snd.dst==recv.src:
             complete=True
 
