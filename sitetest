@@ -17,10 +17,14 @@ for SITE in $SITES; do
         echo "############################################# Verifying $SITE"
         OUTPUT="$NEW"
     fi
-    curl -b "$COOKIES" -c "$COOKIES"  -s -L  "$URL" > "$OUTPUT" || exit 1
-    
-    if [ -e "$NEW" ]; then 
-        diff <( cat "$FIRST" | sed 's/^ *//g' | sort | uniq ) <( cat "$NEW" | sed 's/^ *//g' | sort | uniq )
+    if curl -b "$COOKIES" -c "$COOKIES" -S  -s -L  "$URL" > "$OUTPUT"; then
+        if [ -e "$NEW" ]; then 
+            diff <( cat "$FIRST" | sed 's/^ *//g' | sort | uniq ) <( cat "$NEW" | sed 's/^ *//g' | sort | uniq )
+        fi
+    else
+        echo "ERROR GETTING!"
     fi
+    
+    
 done
 
