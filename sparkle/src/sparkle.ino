@@ -1,9 +1,9 @@
 #include <SPI.h>
-#include <EEPROM.h>
+// #include <EEPROM.h>
 
 #include "../pin_config_default.h"
-#include "messaging.h"
-#include "eeprom_config.h"
+// #include "messaging.h"
+// #include "eeprom_config.h"
 #include "utils.h"
 
 // hardware SPI pins:
@@ -35,19 +35,19 @@
 //current rgbvalues
 byte curr_rgb[LED_COUNT][3];
 //target rbgvalues
-byte want_rgb[LED_COUNT][3]; 
+byte want_rgb[LED_COUNT][3];
 //fade speed to reach the target with
 char fade_speed[LED_COUNT]; //we use the char just as an 'signed byte' ;)
 
 word fade_step=0;
-word par_pat=0;
-byte par_col[3][3]={ 
-  { 0,0  ,10 }, //main color
-  { 0  ,127,0 }, //second color
-  { 0  ,0  ,127 } //background color
+word par_pat=9;
+byte par_col[3][3]={
+  { 80,0  ,00 }, //main color
+  { 127 ,50,0 }, //second color
+  { 10  ,0  ,0 } //background color
 };
 
-byte par_fade[3]={ 
+byte par_fade[3]={
   0, //main fadespeed
   0, //second fadespeed
   0//background fadespeed
@@ -55,14 +55,14 @@ byte par_fade[3]={
 
 byte par_speed=127; //"speed" of pattern, sometimes beats per minute, sometimes something else
 
-//sets the led to specified value on next update. 
+//sets the led to specified value on next update.
 void led_set(word led, byte r, byte g, byte b)
 {
-  want_rgb[led][0]=r;  
-  want_rgb[led][1]=g;  
-  want_rgb[led][2]=b;  
-  curr_rgb[led][0]=r;  
-  curr_rgb[led][1]=g;  
+  want_rgb[led][0]=r;
+  want_rgb[led][1]=g;
+  want_rgb[led][2]=b;
+  curr_rgb[led][0]=r;
+  curr_rgb[led][1]=g;
   curr_rgb[led][2]=b;
   fade_speed[led]=0;
 }
@@ -70,9 +70,9 @@ void led_set(word led, byte r, byte g, byte b)
 //fades from current value to target value.
 void led_fade_to(word led, byte r, byte g, byte b, char new_speed)
 {
-  want_rgb[led][0]=r;  
-  want_rgb[led][1]=g;  
-  want_rgb[led][2]=b;  
+  want_rgb[led][0]=r;
+  want_rgb[led][1]=g;
+  want_rgb[led][2]=b;
   fade_speed[led]=new_speed;
 }
 
@@ -80,9 +80,9 @@ void led_fade_to(word led, byte r, byte g, byte b, char new_speed)
 //(nice for sparkles :))
 void led_fade_from(word led, byte r, byte g, byte b, char new_speed)
 {
-  curr_rgb[led][0]=r;  
-  curr_rgb[led][1]=g;  
-  curr_rgb[led][2]=b;  
+  curr_rgb[led][0]=r;
+  curr_rgb[led][1]=g;
+  curr_rgb[led][2]=b;
   fade_speed[led]=new_speed;
 }
 
@@ -97,13 +97,14 @@ void setup() {
 
 
 
-  config_read();
+  // config_read();
   Serial.begin(115200);
 
-  attachInterrupt(0, radio_interrupt, FALLING);         
+  // attachInterrupt(0, radio_interrupt, FALLING);
 
-  msg.begin();
-  msg.send(PSTR("led.boot"));
+  // msg.begin();
+  // msg.send(PSTR("led.boot"));
+  Serial.printf("CHUCCCCHE\n");
 
   // Start SPI communication for the LEDstrip
   SPI.begin();
@@ -120,11 +121,11 @@ void setup() {
   }
   SPI.transfer(0);
 
-  //initialize led array 
+  //initialize led array
   for (word led=0; led<LED_COUNT; led++)
   {
     led_set(led, 0,0,0);
-  }  
+  }
 }
 
 
@@ -149,10 +150,10 @@ void do_fire()
 
 
 
-//give idle leds a glowy effect 
+//give idle leds a glowy effect
 void do_glowy(
   char chance=0, //chance there is a led glwoing? (e.g. lower is more glowing)
-  byte f_r=1, byte f_g=0, byte f_b=0, 
+  byte f_r=1, byte f_g=0, byte f_b=0,
   byte t_r=5, byte t_g=0, byte t_b=0, //rgb range to glow between
   char fade_min=20, char fade_max=50 //minimum and maximum fade speed
 )
@@ -162,7 +163,7 @@ void do_glowy(
     byte led=random(LED_COUNT);
     if (fade_speed[led]==0)
     {
-        led_fade_to(led, 
+        led_fade_to(led,
           random(f_r, t_r),
           random(f_g, t_g),
           random(f_b, t_b),
@@ -192,11 +193,11 @@ void do_sparkle(
 
 
 //a 'kit radar'
-//default its configured to look like it, but usually you will reconfigure it completely different. 
+//default its configured to look like it, but usually you will reconfigure it completely different.
 //it can be usefull for many different effects.
 void do_radar(
   byte r=127, byte g=0, byte b=0, // color
-  word spd=64, //speed. (skips this many updates), 
+  word spd=64, //speed. (skips this many updates),
   char fade_min=2, char fade_max=2, //minimum and maximum fade length (randomizes  between this for smoother effect)
   word start_led=0, word end_led=7, //start and end lednr
   byte dir=2, //direction: 0 left, 1 right, 2 both
@@ -207,7 +208,7 @@ void do_radar(
   {
      word led;
      word our_step=(fade_step/spd);
-     
+
      //left
      if (dir==0)
      {
@@ -231,27 +232,27 @@ void do_radar(
         led=(our_step%(range*2));
         if (led>=range)
           led=range-led+range-1;
-        
-//        0 1 2 3 4 5  
-        
+
+//        0 1 2 3 4 5
+
 //        0 1 2 2 1 0
-        
+
         led=led+start_led;
      }
-      
+
      if (mix)
      {
          if (!r)
            r=curr_rgb[led][0];
-           
+
          if (!g)
            g=curr_rgb[led][1];
-         
+
          if (!b)
            b=curr_rgb[led][2];
-         
+
      }
-      
+
      led_fade_from(led, r,g,b, random(fade_min, fade_max));
   }
 }
@@ -262,15 +263,15 @@ unsigned long last_micros=0;
 //execute one fade step and limit fps
 void run_step(unsigned long time=1000)
 {
-  //use interupts to prevent unnecceary delays and SPI bus data 
-  if (check_radio || Serial.available())
-  {
-    check_radio=false;
-    msg.loop();
-  }
+  //use interupts to prevent unnecceary delays and SPI bus data
+  // if (check_radio || Serial.available())
+  // {
+  //   check_radio=false;
+  //   msg.loop();
+  // }
 
-  //update all the current and wanted values  
-  for (word led = 0; led < LED_COUNT; led++) {    
+  //update all the current and wanted values
+  for (word led = 0; led < LED_COUNT; led++) {
     //FIRST send the current values, then do the fades
     SPI.transfer(0x80 | (curr_rgb[led][COLOR_BYTE0]));
     SPI.transfer(0x80 | (curr_rgb[led][COLOR_BYTE1]));
@@ -280,7 +281,7 @@ void run_step(unsigned long time=1000)
     char s=fade_speed[led];
     byte done=0;
 
-    //127 means: DONE fading    
+    //127 means: DONE fading
     if (s!=127)
     {
       //change by 1 , every s+1 steps:
@@ -298,9 +299,9 @@ void run_step(unsigned long time=1000)
               done++;
           }
         }
-      } 
+      }
       //change by s, every step
-      else 
+      else
       {
         for (byte color=0; color<3; color++)
         {
@@ -319,7 +320,7 @@ void run_step(unsigned long time=1000)
             //we need to decrease current value
             else if (diff<0)
               curr_rgb[led][color]+=s;
-            else 
+            else
               done++;
           }
         }
@@ -328,7 +329,7 @@ void run_step(unsigned long time=1000)
         fade_speed[led]=127; //done fading, saves performance
     }
   }
-   
+
   // Sending a byte with a MSB of zero enables the output
   // Also resets the led at which new commands start.
   SPI.transfer(0);
@@ -342,8 +343,7 @@ void run_step(unsigned long time=1000)
 }
 
 
-//called when receiving an event that was received via network or serial 
-void Msg::handle(uint16_t from, char * event,  char * par)
+void msg_handle(uint16_t from, char * event,  char * par)
 {
   //when debugging parsing issues
   // Serial.println("from: ");
@@ -359,7 +359,7 @@ void Msg::handle(uint16_t from, char * event,  char * par)
     for (word led=0; led<LED_COUNT; led++)
     {
       led_fade_to(led, 0,0,0,1);
-    }  
+    }
 
     if (par!=NULL)
       par_pat=atoi(par);
@@ -418,7 +418,7 @@ void Msg::handle(uint16_t from, char * event,  char * par)
     par_fade[colnr]=atoi(par);
 
   }
-  
+
   // if (strcmp_P(event, PSTR("some.event"))==0)
   // {
   //   ...do stuff
@@ -433,6 +433,12 @@ void Msg::handle(uint16_t from, char * event,  char * par)
 //////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////
 void loop() {
+
+//   if (random(0,1000)==0)
+//   {
+//     par_pat=(par_pat+1)%10;
+// }
+
   switch(par_pat)
   {
 
@@ -443,7 +449,7 @@ void loop() {
       for (word led=0; led<LED_COUNT; led++)
       {
         led_fade_to(led, par_col[0][0], par_col[0][1], par_col[0][2], par_fade[0]);
-      }  
+      }
       run_step();
       break;
     }
@@ -461,7 +467,7 @@ void loop() {
            led_fade_to(s+2, c,c,0,-10);
            led_fade_to(s+3, 0,c,0,-10);
         }
-        
+
         for (int s=0; s<13; s++)
           run_step();
       }
@@ -485,10 +491,10 @@ void loop() {
         }
         if (c>0)
           c=c-5;
-          
+
         if (c==0)
           c=127;
-        
+
         for (int s=0; s< 10; s++)
           run_step();
       }
@@ -517,7 +523,7 @@ void loop() {
     case 4:
     {
       for(int i=20; i<((LED_COUNT/2)-1); i++)
-      {   
+      {
         for(int s=0; s<300; s++)
         {
           if (random(i*3)==0)
@@ -533,17 +539,17 @@ void loop() {
       }
       break;
     }
- 
+
     ////////////////////////////////////////////multi radar
     case 5:
     {
       //for(int i=0; i<10000; i++)
-      {   
+      {
         const byte bright=127;
         const byte spd=10;
         const byte fade=5;
-        
-        do_radar( 
+
+        do_radar(
               bright,0,0, //color
               spd, //speed. (skips this many updates)
               fade, fade+5, //minimum and maximum fade speed
@@ -551,8 +557,8 @@ void loop() {
               1, //direction
               true //mix
             );
-        
-        do_radar( 
+
+        do_radar(
               0,0,bright, //color
               spd, //speed. (skips this many updates)
               fade, fade+5, //minimum and maximum fade speed
@@ -560,7 +566,7 @@ void loop() {
               1, //direction
               true //mix
             );
-        
+
         run_step();
        }
        break;
@@ -570,13 +576,13 @@ void loop() {
     case 6:
     //for(int i=0; i<10000; i++)
     {
-    
+
       #define R_FADE 20
       #define R_SPEED 10
       #define R_BRIGHT 60
-     
-      
-      do_radar( 
+
+
+      do_radar(
             R_BRIGHT,0,0, //color
             R_SPEED, //speed. (skips this many updates)
             R_FADE, R_FADE+5, //minimum and maximum fade speed
@@ -584,8 +590,8 @@ void loop() {
             0, //direction
             true //mix
           );
-      
-      do_radar( 
+
+      do_radar(
             0,0,R_BRIGHT, //color
             R_SPEED*2, //speed. (skips this many updates)
             R_FADE, R_FADE+5, //minimum and maximum fade speed
@@ -593,7 +599,7 @@ void loop() {
             1, //direction
             true //mix
           );
-      
+
       run_step();
      }
      break;
@@ -608,15 +614,15 @@ void loop() {
         0,127,0, // color
         1  //fade speed
       );
-    
-    
+
+
       do_glowy(
         0, //chance there is a led glwoing? (e.g. lower is more glowing)
         0,0,1, //rgb range
         0,0,10,
         -20, -20   //min max fade speed
       );
-      
+
       run_step();
     }
     break;
@@ -625,7 +631,7 @@ void loop() {
     case 8:
     //for(int i=0; i<10000 ;i++)
     {
-      do_radar( 
+      do_radar(
           127,0,0, //color
           14, //speed. (skips this many updates)
           5, 10, //minimum and maximum fade speed
@@ -633,8 +639,8 @@ void loop() {
           0, //direction
           true
         );
-      
-      do_radar( 
+
+      do_radar(
           0,127,0, //color
           14, //speed. (skips this many updates)
           5, 10, //minimum and maximum fade speed
@@ -642,7 +648,7 @@ void loop() {
            1, //direction,
            true
         );
-        
+
       run_step();
     }
     break;
@@ -664,7 +670,7 @@ void loop() {
       if ((i%150)==0)
       {
          int led=random(0,LED_COUNT-30);
-         
+
          for (int l=led; l<led+20; l++)
          {
              led_fade_from(l, random(100,127), random(100,127), random(100,127),-3);
@@ -676,13 +682,13 @@ void loop() {
        0,0,5,
        -20, -20   //min max fade speed
       );
-    
+
       run_step();
     }
     break;
 
     ////////////////////////////////////////////////////unknown
     default:
-      break; 
+      break;
   }
 }

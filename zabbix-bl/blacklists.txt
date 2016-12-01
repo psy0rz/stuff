@@ -66,3 +66,4 @@ web.dnsbl.sorbs.net
 wormrbl.imp.ch
 xbl.spamhaus.org
 zombie.dnsbl.sorbs.net
+truncate.gbudb.net

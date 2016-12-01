@@ -1,6 +1,6 @@
 #ifndef eeprom_config_h
 #define eeprom_config_h
-#include <avr/eeprom.h>
+#include <EEPROM.h>
 
 //put all dynamic config in here.
 //NOTE: we could save memory by making some macros that wrap a eeprom-read in realtime.
