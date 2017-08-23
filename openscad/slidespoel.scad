@@ -32,11 +32,26 @@ difference()
                 }
 
                 //uitsparing voor klemhouder
-                translate([-(kraagdiameter/2),-kraagdiameter/2,wand])
+                translate([-(kraagdiameter/3),-kraagdiameter/2,wand])
                 {
                     cube([kraagdiameter/2,kraagdiameter,wand],false);
                 }
+                
+                //uitsparing voor klemmen
+                kd=0.8;
+                kl=13;
+                kb=6.36;
+                translate([ -(kraagdiameter/2+klemhouder) ,kraagdiameter/4-kb/2,wand])
+                {
+                    cube([ kl, kb, kd], false);
+                }
 
+                translate([ -(kraagdiameter/2+klemhouder) ,-(kraagdiameter/4+kb/2),wand])
+                {
+                    cube([ kl, kb, kd], false);
+                }
+
+                
                 //uitsparing voor koperdoorgang
                 uitsparing=10;
                 translate([0,-uitsparing/2,0])
