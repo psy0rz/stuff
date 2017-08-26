@@ -1,4 +1,4 @@
-//Erres coin slide coil.  (http://www.topgokkasten.nl/slide-errel/)
+//Errel fruitmachine part:  coin slide coil.  (http://www.topgokkasten.nl/slide-errel/)
 //(mine melted away because of a faulty pcb ;)
 //(c)edwin@datux.nl
 
