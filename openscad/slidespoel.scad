@@ -13,14 +13,14 @@ difference()
     union()
     {
         //randje voorkant
-        translate([0,0,0.5])
+        translate([0,0,lengte-0.5-wand])
         {
             //voorste kraag
             cylinder(d=kraagdiameter, h=wand);
         }
 
         //binnenkant achterkraag 
-        translate([0,0,lengte-3*wand])
+        translate([0,0,0])
         {
             difference()
             {
