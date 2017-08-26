@@ -1,3 +1,7 @@
+//Erres coin slide coil.  (http://www.topgokkasten.nl/slide-errel/)
+//(mine melted away because of a faulty pcb ;)
+//(c)edwin@datux.nl
+
 wand=1.5;
 binnendiameter=18;
 kraagdiameter=40;
@@ -15,28 +19,50 @@ difference()
             cylinder(d=kraagdiameter, h=wand);
         }
 
-        //achterkraag 
+        //binnenkant achterkraag 
         translate([0,0,lengte-3*wand])
         {
             difference()
             {
                 union()
                 {
-                    //achterkraag
-                    cylinder(d=kraagdiameter, h=wand*3);
-                    //klemhouder
-                    translate([-(kraagdiameter/2+klemhouder),-kraagdiameter/2,0])
+                    //binnenste achterkraag
+                    translate([0,0,0*WAND])
                     {
-                        cube([kraagdiameter/2+klemhouder,kraagdiameter,wand*3],false);
+                        cylinder(d=kraagdiameter, h=wand);
+                        //klemhouder
+                        translate([-(kraagdiameter/2+klemhouder),-kraagdiameter/2,0])
+                        {
+                            cube([kraagdiameter/2+klemhouder,kraagdiameter,wand],false);
+                        }
                     }
-                }
 
-                //uitsparing voor klemhouder
-                translate([-(kraagdiameter/3),-kraagdiameter/2,wand])
-                {
-                    cube([kraagdiameter/2,kraagdiameter,wand],false);
+                    //midden achterkraag (iets kleiner ivm koper begeleiding)
+                    translate([0,0,1*wand])
+                    {
+                        cylinder(d=kraagdiameter-wand, h=wand);
+                        //klemhouder
+                        translate([-(kraagdiameter/2+klemhouder),-kraagdiameter/2+wand/2,0])
+                        {
+                            cube([kraagdiameter/2+klemhouder,kraagdiameter-wand,wand],false);
+                        }
+                    }
+                    
+                    //buitenste achterkraag
+                    translate([0,0,2*wand])
+                    {
+                        cylinder(d=kraagdiameter, h=wand);
+                        //klemhouder
+                        translate([-(kraagdiameter/2+klemhouder),-kraagdiameter/2,0])
+                        {
+                            cube([kraagdiameter/2+klemhouder,kraagdiameter,wand],false);
+                        }
+                    }
+
+                    
                 }
                 
+
                 //uitsparing voor klemmen
                 kd=0.8;
                 kl=13;
@@ -59,12 +85,7 @@ difference()
                     cube([kraagdiameter,uitsparing,wand*3],false);
                 }
                 
-                //uitsparing voor koper rondom
-                translate([0,0,wand])
-                {
-                    cylinder(d=kraagdiameter, h=wand);
-
-                }
+    
                 
             }
             
