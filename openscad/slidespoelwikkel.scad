@@ -21,7 +21,7 @@ translate([-5,0,0])
 }
 translate([-5,20,10])
 {
-    cube([10,10,1.5],false);
+    cube([10,10,3*1.6/2],false);
 }
 
 
