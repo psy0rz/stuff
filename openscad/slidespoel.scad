@@ -27,7 +27,7 @@ difference()
                 union()
                 {
                     //binnenste achterkraag
-                    translate([0,0,0*WAND])
+                    translate([0,0,0*wand])
                     {
                         cylinder(d=kraagdiameter, h=wand);
                         //klemhouder
