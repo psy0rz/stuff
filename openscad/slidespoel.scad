@@ -16,7 +16,7 @@ difference()
         translate([0,0,lengte-0.5-wand])
         {
             //voorste kraag
-            cylinder(d=kraagdiameter, h=wand);
+            cylinder(d=kraagdiameter, h=wand, $fn=100);
         }
 
         //binnenkant achterkraag 
@@ -51,7 +51,7 @@ difference()
                     //buitenste achterkraag
                     translate([0,0,2*wand])
                     {
-                        cylinder(d=kraagdiameter, h=wand);
+                        cylinder(d=kraagdiameter, h=wand, $fn=100);
                         //klemhouder
                         translate([-(kraagdiameter/2+klemhouder),-kraagdiameter/2,0])
                         {
@@ -94,10 +94,10 @@ difference()
         }
 
         //buitendiameter kern
-        cylinder(d=binnendiameter+2*wand, h=lengte);
+        cylinder(d=binnendiameter+2*wand, h=lengte, $fn=100);
     }
     
     //binnendiameter kern uithollen
-    cylinder(d=binnendiameter, h=lengte);
+    cylinder(d=binnendiameter, h=lengte, $fn=100);
 }
 
