@@ -17,9 +17,9 @@ translate([0,0,lengte+10])
 //achtersteun
 translate([-5,0,0])
 {
-    cube([10,30,10],false);
+    cube([10,20+wand,10],false);
 }
-translate([-5,20,10])
+translate([-5,10+wand,10])
 {
     cube([10,10,3*1.6/2],false);
 }
