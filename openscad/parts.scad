@@ -1,5 +1,6 @@
 $fn=100;
 
+//x,y,z -> l,w,h
 
 pn532_l=42.4;
 pn532_w=40.3;
@@ -9,15 +10,16 @@ module pn532()
   color("red") {
       difference()
       {
-          cube([pn532_l,pn532_w,pn532_h]);    
+          cube([pn532_l,pn532_w,pn532_h]);
   //        cyclinder(h=h, d=3);
       }
   }
 }
 
-hlkpm01_w=20.2;
+//note: bottom is 20.2 and 34.2
+hlkpm01_w=20;
 hlkpm01_l=34;
-hlkpm01_h=15;
+hlkpm01_h=15.2;
 
 module hlkpm01()
 {
@@ -38,9 +40,9 @@ module hlkpm01()
 
 
 
-breadboard170_l=46.5;
+breadboard170_l=46.4;
 breadboard170_w=34.5;
-breadboard170_h=9.5;
+breadboard170_h=9.7;
 module breadboard170()
 {
     color ("white")
@@ -54,11 +56,11 @@ module breadboard170()
                 //main
                 cube([l,w,h]);
                 //notch
-                bl=4.3;
-                bh=5;
-                bw=1.5;
-                translate([l/2-bl/2, -bw, 0]) cube([bl,bw,bh]);
-                translate([-bw, w/2-bl/2, 0]) cube([bw,bl,bh]);
+                bl=4.35;
+                bh=5.2;
+                bw=1.6;
+                translate([l/2-bl/2, -bw, 1]) cube([bl,bw,bh]);
+                translate([-bw, w/2-bl/2, 1]) cube([bw,bl,bh]);
             }
             translate([4.8,w/2,0]) cylinder(d=3.5,h=h);
             translate([l-4.8,w/2,0]) cylinder(d=3.5,h=h);
@@ -84,7 +86,7 @@ module wemosd1mini()
 
 
 
-
+//crate , specifiy inner dimentions
 module crate(w,l,h,wall)
 {
     difference()
