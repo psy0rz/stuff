@@ -73,8 +73,13 @@ difference()
    rotate([0,90,0]) 
    cylinder(h=wall+0.1,d=5);
 
+   //led
+   translate([breadboard170_l+1, pn532_w-wall,wall+6])
+   color("blue") 
+   rotate([180,0,0]) 
+   led5mm_hq();
+
 }
 
 //wemosd1mini();
 
-//led5mm_hq();
