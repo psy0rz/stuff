@@ -56,9 +56,9 @@ module breadboard170()
                 //main
                 cube([l,w,h]);
                 //notch
-                bl=4.35;
-                bh=5.2;
-                bw=1.6;
+                bl=4.45;
+                bh=5.3;
+                bw=1.7;
                 translate([l/2-bl/2, -bw, 1]) cube([bl,bw,bh]);
                 translate([-bw, w/2-bl/2, 1]) cube([bw,bl,bh]);
             }
@@ -86,7 +86,7 @@ module wemosd1mini()
 
 
 
-//crate , specifiy inner dimentions
+//crate , specifiy inner dimensions
 module crate(w,l,h,wall)
 {
     difference()
@@ -95,6 +95,33 @@ module crate(w,l,h,wall)
         translate([wall,wall,wall]) cube([w, l, h+wall]);
     }
 }
+
+//a crate with only the corners
+// specifiy inner dimensions, and how much to close it from the bottom and corners
+module open_crate(w,l,h,wall,corner, bottom)
+{
+    difference()
+    {
+        crate(w,l,h,wall);
+        
+        translate([0, wall+corner, wall+bottom]) cube([w+wall*2,  l-corner*2,  h]);
+        //same as above, but for x
+        translate([wall+corner, 0, wall+bottom]) cube([w-corner*2,l+wall*2,  h]);        
+    }
+}
+
+//a cover that fits inside a crate (a crate that has w,l,h as inner dimensions)
+//basically a open_crate with a rimm that sticks out by crate_wall mm
+module cover(w,l,h,wall,corner, bottom,crate_wall)
+{
+        
+        open_crate(w-wall*2,l-wall*2,h, wall, corner, bottom);
+
+        //the rimm
+        translate([-crate_wall, -crate_wall,0]) cube([w+crate_wall*2, l+crate_wall*2, wall]);
+}
+
+
 
 
 module trapezoid(base,top,height, depth)

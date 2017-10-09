@@ -4,11 +4,17 @@ commonLegLength=0;
 commonLegDiameter=0;
 include <standard5mm.scad>
 
-wall=2;
+
+
+wall=1;
 window=19;
 boxh=40;
+woodboxw=30;
 
-//diff for all the holes
+
+
+
+//diff for all
 difference()
 {
     union()
@@ -24,8 +30,8 @@ difference()
 
 
                 //rfid holder
-                crate(pn532_l, pn532_w, pn532_h, wall);
-                //translate([wall,wall,wall])   pn532();
+                translate([breadboard170_l-pn532_l,0,0]) crate(pn532_l, pn532_w, pn532_h, wall);
+                
             }
 
             //breadboard points
@@ -49,9 +55,10 @@ difference()
         //boxpart on wood
         translate([0,wall+pn532_w,window])
         {
-                crate(breadboard170_l, 30,boxh-window, wall);
+                crate(breadboard170_l, woodboxw,boxh-window, wall);
 
-                translate([0,10,0]) crate(hlkpm01_l, hlkpm01_w, 10, wall);
+                //powerblok holder
+                translate([0,woodboxw-hlkpm01_w,0]) crate(hlkpm01_l, hlkpm01_w, 10, wall);
         }
     }
 
@@ -63,7 +70,7 @@ difference()
 
    //220v hole
    color("red") 
-   translate([breadboard170_l+wall, pn532_w+breadboard170_w-10, window+wall+6]) 
+   translate([breadboard170_l+wall, pn532_w+woodboxw-10, window+wall+6]) 
    rotate([0,90,0]) 
    cylinder(h=wall+0.1,d=6);
 
@@ -73,13 +80,34 @@ difference()
    rotate([0,90,0]) 
    cylinder(h=wall+0.1,d=5);
 
+
+   //sloped window edge
+   color("red") 
+   translate([0,pn532_w+wall,0]) 
+    rotate([-45,0,0]) 
+    cube([breadboard170_l+wall*2,wall,wall*2]);
+
    //led
-   translate([breadboard170_l+1, pn532_w-wall,wall+6])
+   translate([2, pn532_w-3.5,10])
    color("blue") 
    rotate([180,0,0]) 
-   led5mm_hq();
+   cylinder(d=5,h=boxh);
+
+
+
+   //start of box woodpart corner
+   color("red") 
+   translate([wall, wall*2+pn532_w, window])
+   {
+      //screw holes
+      translate([5,5,0]) cylinder(h=wall+0.1,d=3);
+      translate([5,woodboxw-5,0]) cylinder(h=wall+0.1,d=3);
+      translate([breadboard170_l-5,5,0]) cylinder(h=wall+0.1,d=3);
+      translate([breadboard170_l-5,woodboxw-5 ,0]) cylinder(h=wall+0.1,d=3);
+   }
 
 }
 
-//wemosd1mini();
+
+
 
