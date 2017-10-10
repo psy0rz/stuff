@@ -13,4 +13,7 @@ woodboxw=30;
 
 
 //cover
-cover(breadboard170_l,pn532_w+wall+woodboxw, 10,wall,10, 0, wall);
+cover(breadboard170_l,pn532_w+wall+woodboxw, 14,wall,10, 0, wall);
+
+//we need extra room :(
+translate([-wall,-wall,0]) crate(breadboard170_l,pn532_w+wall+woodboxw, 7,wall);

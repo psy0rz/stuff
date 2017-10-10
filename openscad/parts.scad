@@ -154,3 +154,21 @@ module trapezoid(base,top,height, depth)
 
     );
 }
+
+
+module test(s,h)
+{
+    for (a =[0,90,180,270])
+    {
+        rotate([0,0,a+45])
+        {
+            translate([-s/2,-s/2,0])
+            {
+                cube([s*3,s,h]);
+                translate([s*2,0,0])cube([s,s*3,h]);
+            }
+        }
+    }
+}
+
+
