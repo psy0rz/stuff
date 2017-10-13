@@ -165,10 +165,33 @@ module test(s,h)
             translate([-s/2,-s/2,0])
             {
                 cube([s*3,s,h]);
-                translate([s*2,0,0])cube([s,s*3,h]);
+                translate([s*2,-s*2,0])cube([s,s*2,h]);
             }
         }
     }
 }
 
+
+module test2(h,wall)
+{
+    r=1.3 * h;
+    b=0.4 * h;
+    
+    center= sqrt(pow(r,2)-pow((h/2),2))+b/2;
+    
+    difference()
+    {
+        translate([-h/2,-b/2,0])cube([h,b,wall]);
+        translate([0,center,0]) color("red") cylinder(d=r*2, wall);
+        translate([0,-center,0]) color("red") cylinder(d=r*2, wall);
+    }
+
+
+    difference()
+    {
+        translate([-b/2,-h/2,0])cube([b,h,wall]);
+        translate([center,0,0]) color("red") cylinder(d=r*2, wall);
+        translate([-center,0,0]) color("red") cylinder(d=r*2, wall);
+    }
+}
 
