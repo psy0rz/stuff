@@ -1,9 +1,36 @@
+/*
+d5 3M ohm
+d6 100K ohm
+d0 rgb led pin 1 (from flat side)
+d1 rxd rfid
+d2 txd rfid
+d4 rst rfid
+d3 led pin 3
+d7 transister base
+vcc led pin 2
+
+
+D5 -[ 3M   ] ---- sense wire
+                |
+D6 -[ 100K ] ---|
+                |
+gnd ---|>-------|
+     5v zener           
+              
+
+D7 - [ 1k ] -- transistor base
+
+(open collector to Cisa lock coil, with flyback diode)
+                
+
+*/
+
+
 include <parts.scad>
 
 commonLegLength=0;
 commonLegDiameter=0;
 include <standard5mm.scad>
-
 
 
 wall=1;
