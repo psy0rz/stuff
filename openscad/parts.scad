@@ -56,9 +56,10 @@ module breadboard170()
                 //main
                 cube([l,w,h]);
                 //notch
-                bl=4.45;
-                bh=5.3;
-                bw=1.7;
+                margin=0.1;
+                bl=4.45+margin;
+                bh=5.3+margin;
+                bw=1.7+margin;
                 translate([l/2-bl/2, -bw, 1]) cube([bl,bw,bh]);
                 translate([-bw, w/2-bl/2, 1]) cube([bw,bl,bh]);
             }

@@ -38,7 +38,7 @@ include <standard5mm.scad>
 wall=1.21;
 
 boxh=40; //height of the case 
-boxw=breadboard170_l+0.4; //width of the case (fits breadboard length)
+boxw=breadboard170_l+0.2; //width of the case (fits breadboard length)
 window=19; //depth of the window (so on the wood it will be boxh-window heigh)
 
 //box length (window part + wood part)
@@ -62,7 +62,8 @@ difference()
 
 
                 //rfid holder
-                translate([boxw-pn532_l,0,0]) crate(pn532_l, boxlwindow, pn532_h, wall);
+                rfidmargin=0.1;
+                translate([boxw-pn532_l-rfidmargin,0,0]) crate(pn532_l+rfidmargin, boxlwindow, pn532_h, wall);
                 
             }
 
@@ -91,7 +92,8 @@ difference()
                 crate(boxw, boxlwood,boxh-window, wall);
 
                 //powerblok holder
-                translate([0,boxlwood-hlkpm01_w,0]) crate(hlkpm01_l, hlkpm01_w, 10, wall);
+                hlkmargin=0.1;
+                translate([0,boxlwood-hlkpm01_w-hlkmargin,0]) crate(hlkpm01_l+hlkmargin, hlkpm01_w+hlkmargin, 10, wall);
         }
     }
 
@@ -134,7 +136,7 @@ difference()
 
    //rfid board removal help 
    translate([boxw/2,boxlwindow/2,0])
-   cylinder(d=3,h=wall, center=true);
+   cylinder(d=3,h=wall+10, center=true);
 
 
    //start of box woodpart corner
