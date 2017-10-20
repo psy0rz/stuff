@@ -35,7 +35,7 @@ commonLegDiameter=0;
 include <standard5mm.scad>
 
 
-wall=1;
+wall=1.21;
 
 boxh=40; //height of the case 
 boxw=breadboard170_l+0.4; //width of the case (fits breadboard length)
