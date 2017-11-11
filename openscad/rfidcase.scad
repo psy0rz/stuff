@@ -1,29 +1,45 @@
 /*
 d5 3M ohm
 d6 100K ohm
-d0 rgb led pin 1 (from flat side)
-d1 rxd rfid
-d2 txd rfid
-d4 rstpdn rfid
-d3 led pin 3
-d7 transister base
-vcc led pin 2
+d0 rgb led pin 1 (blue. from flat side)
+d1 scl rfid (white)
+d2 sda rfid (gray)
+d4 rstpdn rfid (black)
+d3 led pin 3 (gray)
+d7 transistor base
+3v3:
+ - led pin 2 (purple)
+vcc:
+ - vcc rfid (purple)
+gnd: 
+ - gnd rfid (blue)
 
 
-D5 -[ 3M   ] ---- sense wire
-                |
-D6 -[ 100K ] ---|
-                |
-gnd ---|>-------|
+D5 -[ 12k  ] --(sense out)----- sense wire
+                           |      
+D6 -[ 100k ] --(sense in)--|
+                           |
+gnd ---|>------------------|
      5v zener           
               
 
-D7 - [ 1k ] -- transistor base
+D7 - [ 1k ] -- transistor B
+
+bc139
+ECB
 
 (open collector to Cisa lock coil, with flyback diode)
          
+       
   
-TODO: 
+  
+rfid pinout:
+ vcc   purp
+ gnd   blue
+ rstpdn black (d4)
+ -
+ sda   gray  (d2)
+ scl   white (d1)
 
 */
 
@@ -62,7 +78,7 @@ difference()
 
 
                 //rfid holder
-                rfidmargin=0.1;
+                rfidmargin=0.3;
                 translate([boxw-pn532_l-rfidmargin,0,0]) crate(pn532_l+rfidmargin, boxlwindow, pn532_h, wall);
                 
             }
@@ -149,6 +165,10 @@ difference()
       translate([boxw-5,5,0]) cylinder(h=wall+0.1,d=3);
       translate([boxw-5,boxlwood-5 ,0]) cylinder(h=wall+0.1,d=3);
    }
+
+   //usb hole
+   usbw=15;
+   translate([0,breadboard170_w/2+wall-usbw/2,boxh-12] ) cube([wall,usbw,8]);
 
 }
 

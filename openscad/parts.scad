@@ -56,7 +56,7 @@ module breadboard170()
                 //main
                 cube([l,w,h]);
                 //notch
-                margin=0.1;
+                margin=0.2;
                 bl=4.45+margin;
                 bh=5.3+margin;
                 bw=1.7+margin;
