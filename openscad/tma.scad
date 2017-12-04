@@ -17,7 +17,7 @@ use <utils/build_plate.scad>
 // preview[view:south east, tilt:top diagonal]
 
 // The text to use
-Text="tma";
+Text="TMA";
 // Size of letters
 TextHieght=90; // [20 : 170]
 // Depth/hieght of text (0=no text)
