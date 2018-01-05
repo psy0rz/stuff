@@ -1,0 +1,19 @@
+remote:
+  host: "d1"
+  user: "root"
+  path: "domoticz/scripts/dzVents/scripts/"
+behaviour:
+  uploadOnSave: true
+  syncDownOnOpen: true
+  forgetConsole: false
+  autoHideConsole: true
+  alwaysSyncAll: false
+option:
+  deleteFiles: false
+  exclude: [
+    ".sync-config.cson"
+    ".git"
+    "node_modules"
+    "tmp"
+    "vendor"
+  ]
