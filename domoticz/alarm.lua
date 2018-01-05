@@ -1,6 +1,16 @@
 -- Alarm device naming:
 -- PIR sensors: "PIR (group) (name)"
--- Alarm on/off switch: "alarm (group) (name)"
+-- Alarm on/off state and switch: "alarm (group)"
+-- Alarm push button (to enable/disable alarm): "alarmpush (group)"
+
+-- internal alarm states:
+--  disarmed
+--  warn_armed
+--  armed
+--  warn_alarm
+--  alarm
+
+-- These are also send to ESPEasy devices as event. You should make ESPEasy rules to handle these events and actually control lamps and sirens.
 
 
 
@@ -42,12 +52,6 @@ local function switch_state(domoticz, group, state)
 end
 
 
--- alarm states:
--- disarmed
--- warn_armed
--- armed
--- warn_alarm
--- alarm
 
 
 return {
@@ -58,7 +62,8 @@ return {
     -- },
     devices = {
       'PIR *',
-      'alarm *'
+      'alarm *',
+      'alarmpush *'
     }
   },
   data = {
@@ -104,11 +109,10 @@ return {
         state_device.switchOff()
         state_device.switchOn().afterSec(3600)
       end
-      -- end
-    end
 
-    -- alarm switched on/off or change state (this is done by a time event via switchOn().afterSec())
-    if device_type=="alarm" then
+
+      -- alarm switched on/off or change state (this is done by a time event via switchOn().afterSec())
+    elseif device_type=="alarm" then
 
       if device.state == 'On' then
         -- alarm button is switched on (again). change state accordingly
@@ -129,9 +133,19 @@ return {
         switch_state(domoticz, device_group, 'disarmed')
       end
 
+      -- alarm pushbutton is pressed to enable/disable alarm.
+    elseif device_type=="alarmpush" then
+      if device.state == 'On' then
+        -- enable alarm
+        if alarm_state=='disarmed' then
+          switch_state(domoticz, device_group, 'warn_armed')
+          state_device.switchOn().afterSec(10)
+        else
+          -- disable alarm
+          state_device.switchOff().silent()
+          switch_state(domoticz, device_group, 'disarmed')
+        end
+      end
     end
   end
-
-  -- end
-
 }
