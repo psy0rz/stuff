@@ -2,6 +2,7 @@
 -- PIR sensors: "PIR (group) (name)"
 -- Alarm on/off state and switch: "alarm (group)"
 -- Alarm push button (to enable/disable alarm): "alarmpush (group)"
+-- Automaticly enable alarm after a certain idle time: "alarmauto (group)"
 
 -- internal alarm states:
 --  disarmed
@@ -13,8 +14,6 @@
 -- These are also send to ESPEasy devices as event. You should make ESPEasy rules to handle these events and actually control lamps and sirens.
 
 
-
-
 indicator_ips={
   ["kantoor"] = {
     '192.168.13.52',
@@ -22,9 +21,13 @@ indicator_ips={
   }
 }
 
+auto_arm_time=2*3600
+-- auto_arm_time=10
+
 function string.starts(String,Start)
   return string.sub(String,1,string.len(Start))==Start
 end
+
 
 local function split(str,pat)
   local tbl={}
@@ -41,14 +44,13 @@ local function indicate(domoticz, group, state)
   end
 end
 
+
 local function switch_state(domoticz, group, state)
   if domoticz.data.states[group] ~= state then
     domoticz.log("Changing state of group "..group.." to: "..state)
     domoticz.data.states[group]=state
     indicate(domoticz, group, state)
   end
-
-
 end
 
 
@@ -57,13 +59,11 @@ end
 return {
   active = true,
   on = {
-    -- timer = {
-    --     'every minute'
-    -- },
     devices = {
       'PIR *',
       'alarm *',
-      'alarmpush *'
+      'alarmpush *',
+      'alarmauto *'
     }
   },
   data = {
@@ -72,23 +72,7 @@ return {
 
   execute = function(domoticz, device, triggerInfo)
 
-    -- -- timer event
-    -- if triggerInfo.type == domoticz.EVENT_TYPE_TIMER then
-    --
-    --   -- no change in state needed
-    --   if domoticz.data.state == domoticz.data.want_state then
-    --     return
-    --   end
-    --
-    --   if domoticz.data.state=="disarmed" then
-    --
-    --   end
-    --
-    --
-    --   --            domoticz.openURL('http://192.168.13.52/control?cmd=pulse,4,1,25')
-    --
-    --   -- device event
-    -- else
+
     parts=split(device.name, "[^ ]+")
     device_type=parts[1]
     device_group=parts[2]
@@ -98,21 +82,31 @@ return {
     state_device=domoticz.devices("alarm "..device_group)
 
 
-    -- motion detected
+    local function check_auto_arm()
+      if domoticz.devices("alarmauto "..device_group).state == 'On' then
+        state_device.switchOn().afterSec(auto_arm_time)
+      end
+    end
+
+
     if device_type=="PIR" then
-      -- if device.lastUpdate.minutesAgo >= 15 then
+      -- motion detected
+
       if alarm_state=='armed' then
         switch_state(domoticz, device_group, 'warn_alarm')
         state_device.switchOn().afterSec(10)
       elseif alarm_state=='warn_armed' then
-        -- stop arming, try again after an hour
+        -- stop arming
         state_device.switchOff()
-        state_device.switchOn().afterSec(3600)
+        check_auto_arm()
+      elseif alarm_state=='disarmed' then
+        -- auto arm after there has been no movement for a long time
+        check_auto_arm()
       end
 
 
-      -- alarm switched on/off or change state (this is done by a time event via switchOn().afterSec())
     elseif device_type=="alarm" then
+      -- alarm switched on/off or change state (this is done by a time event via switchOn().afterSec())
 
       if device.state == 'On' then
         -- alarm button is switched on (again). change state accordingly
@@ -128,24 +122,37 @@ return {
           switch_state(domoticz, device_group, 'armed')
         end
       else
-        -- alarm button is switched off
+        -- alarm button is switched off. reset any timers
         state_device.switchOff().silent()
         switch_state(domoticz, device_group, 'disarmed')
+        check_auto_arm()
       end
 
-      -- alarm pushbutton is pressed to enable/disable alarm.
     elseif device_type=="alarmpush" then
+      -- alarm pushbutton is pressed to enable/disable alarm.
       if device.state == 'On' then
         -- enable alarm
         if alarm_state=='disarmed' then
-          switch_state(domoticz, device_group, 'warn_armed')
-          state_device.switchOn().afterSec(10)
+          state_device.switchOn()
         else
           -- disable alarm
+          state_device.switchOff()
+        end
+      end
+
+
+    elseif device_type=="alarmauto" then
+      -- alarm auto arm mode has changed
+      if device.state == 'On' then
+        check_auto_arm()
+      else
+        -- reset any auto arm timers
+        if state_device.state=='Off' then
           state_device.switchOff().silent()
-          switch_state(domoticz, device_group, 'disarmed')
         end
       end
     end
   end
+
+
 }

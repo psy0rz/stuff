@@ -5,10 +5,7 @@ function user_event(domoticz, location, role)
        if location=="kantoor" then
            domoticz.openURL('http://192.168.13.55/control?cmd=cisa_unlockhard,60')
            -- domoticz.openURL('http://192.168.13.51/control?cmd=cisa_unlock,600')
-           if domoticz.devices('alarm kantoor').state=='On' then
-               domoticz.devices('alarm kantoor').switchOff()
-           end
-           domoticz.devices('alarm kantoor').switchOn().afterSec(3600)
+           domoticz.devices('alarm kantoor').switchOff()
        end
 
        if location=="achter" then
