@@ -70,6 +70,43 @@ module breadboard170()
 }
 
 
+breadboard400_l=82.4;
+breadboard400_w=54.7;
+breadboard400_h=9.7;
+module breadboard400()
+{
+    color ("white")
+    {
+        l=breadboard400_l;
+        w=breadboard400_w;
+        h=breadboard400_h;
+        difference(){
+            union()
+            {
+                //main
+                cube([l,w,h]);
+                //notch
+                margin=0.2;
+                bl=2.1+margin;
+                bh=breadboard400_h;
+                bw=1.7+margin;
+                translate([13.2, -bw, 0]) cube([bl,bw,bh]);
+                translate([breadboard400_l-13.2-bw, -bw, 0]) cube([bl,bw,bh]);
+
+                translate([breadboard400_l, 3.8, 0]) cube([bw,bl,bh]);
+                translate([breadboard400_l, breadboard400_w-3.8-bl, 0]) cube([bw,bl,bh]);
+                translate([breadboard400_l, (breadboard400_w-bl)/2, 0]) cube([bw,bl,bh]);
+                /*translate([], -bw, 0]) cube([bl,bw,bh]);*/
+
+                /*translate([-bw, w/2-bl/2, 0]) cube([bw,bl,bh]);*/
+            }
+            translate([4.8,w/2,0]) cylinder(d=3.5,h=h);
+            translate([l-4.8,w/2,0]) cylinder(d=3.5,h=h);
+        }
+    }
+}
+
+
 wemosd1mini_w=25.5;
 wemosd1mini_l=34.6;
 wemosd1mini_h=6.5;
@@ -104,10 +141,10 @@ module open_crate(w,l,h,wall,corner, bottom)
     difference()
     {
         crate(w,l,h,wall);
-        
+
         translate([0, wall+corner, wall+bottom]) cube([w+wall*2,  l-corner*2,  h]);
         //same as above, but for x
-        translate([wall+corner, 0, wall+bottom]) cube([w-corner*2,l+wall*2,  h]);        
+        translate([wall+corner, 0, wall+bottom]) cube([w-corner*2,l+wall*2,  h]);
     }
 }
 
@@ -115,7 +152,7 @@ module open_crate(w,l,h,wall,corner, bottom)
 //basically a open_crate with a rimm that sticks out by crate_wall mm
 module cover(w,l,h,wall,corner, bottom,crate_wall)
 {
-        
+
         open_crate(w-wall*2,l-wall*2,h, wall, corner, bottom);
 
         //the rimm
@@ -177,9 +214,9 @@ module test2(h,wall)
 {
     r=1.3 * h;
     b=0.4 * h;
-    
+
     center= sqrt(pow(r,2)-pow((h/2),2))+b/2;
-    
+
     difference()
     {
         translate([-h/2,-b/2,0])cube([h,b,wall]);
@@ -195,4 +232,3 @@ module test2(h,wall)
         translate([-center,0,0]) color("red") cylinder(d=r*2, wall);
     }
 }
-
