@@ -7,10 +7,17 @@
 
 include <parts.scad>
 
+$fn=100;
 wall=1.4;
 
 //margins for pressfitting
 margin=0.1;
+module guide(offset, angle, diameter)
+{
+  translate([offset,0,10]) rotate([angle,0,0]) cube([diameter, 100,100]);
+  translate([offset,0,10]) cube([diameter, 100,100]);
+
+}
 
 difference()
 {
@@ -40,8 +47,8 @@ difference()
         cube([(breadboard400_l+margin)+20, 20, 10+5]);
 
         //powerblock cable guide (flat 3.4mm)
-        translate([5,5,10]) cube([3.4, 100,100]);
-        translate([5,5,10]) cube([10, 3.4,100]);
+        translate([5,5,5]) cube([10, 3.3,100]);
+        translate([0,5,0]) guide(5, -30, 3.3);
 
         //powerblock
         translate([+10, wall-(breadboard400_w+margin), 0])
@@ -55,20 +62,21 @@ difference()
           }
         }
 
+
         //3.8 mm
-        translate([35,0,10]) rotate([-30,0,0]) cube([3.8, 100,100]);
-        translate([35,0,10])cube([3.8, 100,100]);
-        translate([45,0,10]) cube([3.8, 100,100]);
-        translate([55,0,10]) cube([3.8, 100,100]);
+        guide(35, -30, 3.7);
+        guide(45, -30, 3.7);
+        guide(55, -30, 3.7);
+
 
         //1.8 mm
-        translate([65,0,10]) cube([1.8, 100,100]);
-        translate([70,0,10]) cube([1.8, 100,100]);
-        translate([75,0,10]) cube([1.8, 100,100]);
+        guide(65, -30, 1.7);
+        guide(70, -30, 1.7);
+        guide(75, -30, 1.7);
 
         //5 mm
-        translate([80,0,10]) cube([5, 100,100]);
-        translate([90,0,10]) cube([5, 100,100]);
+        guide(80, -30, 4.8);
+        guide(90, -30, 4.8);
 
 
 
@@ -99,4 +107,17 @@ difference()
   {
     breadboard400();
   }
+
+  //screw holes
+  translate([-4,7,0]) cylinder(d=3.5,h=wall);
+  translate([breadboard400_l+7, 7, 0]) cylinder(d=3.5,h=wall);
+
+  translate([-4, breadboard400_w-7, 0]) cylinder(d=3.5,h=wall);
+  translate([breadboard400_l+7, breadboard400_w-7, 0]) cylinder(d=3.5,h=wall);
+
+
+  //vent holes
+  for(offset = [0 : 5 : breadboard400_l])
+    translate([offset,0,15]) rotate([0,30,0]) cube([1,wall,15]);
+
 }
