@@ -26,7 +26,7 @@ difference()
         crate((breadboard400_l+margin)+20, (breadboard400_w+margin)+20, 30, wall);
 
         //open wall for cables
-        translate([wall+5, wall+(breadboard400_w+margin)+20,10]) cube([(breadboard400_l+margin)+20-10, wall, 100]);
+        translate([wall+5, wall+(breadboard400_w+margin)+20,wall]) cube([(breadboard400_l+margin)+20-10, wall, 100]);
       }
     }
 
@@ -56,7 +56,8 @@ difference()
         }
 
         //3.8 mm
-        translate([35,0,10]) cube([3.8, 100,100]);
+        translate([35,0,10]) rotate([-30,0,0]) cube([3.8, 100,100]);
+        translate([35,0,10])cube([3.8, 100,100]);
         translate([45,0,10]) cube([3.8, 100,100]);
         translate([55,0,10]) cube([3.8, 100,100]);
 
