@@ -11,7 +11,7 @@ $fn=100;
 wall=1.4;
 
 //margins for pressfitting
-margin=0.1;
+margin=0.3;
 module guide(offset, angle, diameter)
 {
   translate([offset,0,10]) rotate([angle,0,0]) cube([diameter, 100,100]);
@@ -47,8 +47,8 @@ difference()
         cube([(breadboard400_l+margin)+20, 20, 10+5]);
 
         //powerblock cable guide (flat 3.4mm)
-        translate([5,5,5]) cube([10, 3.3,100]);
-        translate([0,5,0]) guide(5, -30, 3.3);
+        translate([5,5,5]) cube([10, 3.4,100]);
+        translate([0,5,0]) guide(5, -30, 3.4);
 
         //powerblock
         translate([+10, wall-(breadboard400_w+margin), 0])

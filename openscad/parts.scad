@@ -87,11 +87,12 @@ module breadboard400()
                 cube([l,w,h]);
                 //notch
                 margin=0.2;
-                bl=2.1+margin;
+                /*bl=2.1+margin;*/
+                bl=4+margin; /* other brand /type */
                 bh=breadboard400_h;
                 bw=1.7+margin;
-                translate([13.2, -bw, 0]) cube([bl,bw,bh]);
-                translate([breadboard400_l-13.2-bw, -bw, 0]) cube([bl,bw,bh]);
+                translate([13.1, -bw, 0]) cube([bl,bw,bh]);
+                translate([breadboard400_l-13.1-bw, -bw, 0]) cube([bl,bw,bh]);
 
                 translate([breadboard400_l, 3.8, 0]) cube([bw,bl,bh]);
                 translate([breadboard400_l, breadboard400_w-3.8-bl, 0]) cube([bw,bl,bh]);
