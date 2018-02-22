@@ -7,6 +7,9 @@ import json
 import time
 import datetime
 import os
+import socket
+import messagebird
+
 
 if len(sys.argv)<4:
 	print "Not enough parameters"
@@ -14,9 +17,10 @@ if len(sys.argv)<4:
 
 # Script to send SMS messages from Zabbix
 # $1 is the phone number, $2 is the subject and $3 is the message
-number=sys.argv[1]
-subject=sys.argv[2]
-message=sys.argv[3]
+client_key=sys.argv[1]
+number=sys.argv[2]
+subject=sys.argv[3]
+message=sys.argv[4]
 
 throttle_time=3600
 throttle_maxcount=10
@@ -27,13 +31,13 @@ data={
 	"starttime":0,
 	"count":0
 	}
-	
+
 if os.path.exists(data_file_name):
 	dfp=open(data_file_name,'r')
 	data=json.load(dfp)
 
 next_time=(round(throttle_time-(time.time()-data["starttime"])))
-	
+
 if time.time()-data["starttime"] > throttle_time:
 	print "Resetting sms counter to 0"
 	data["count"]=0
@@ -49,11 +53,11 @@ data["count"]+=1
 
 #add thorttle warning
 if data["count"] >= throttle_maxcount:
-	sms_text="{0}\\0ASMS {1:.0f} SEC. DISABLED!\\0A{2}".format(subject, next_time, message)
+	sms_text="{0}\nSMS TEMPORARY DISABLED. \n{2}".format(subject, next_time, message)
 	print "Last message! Next one can be send in {0} seconds".format(next_time)
 #no throttle warning
 else:
-	sms_text="{0}\\0A{1}".format(subject,message)
+	sms_text="{0}\n{1}".format(subject,message)
 
 #to prevent raceconditions in network outages, FIRST update the file, then call smssend (which may hang long)
 dfp=open(data_file_name,'w')
@@ -61,16 +65,9 @@ json.dump(data, dfp)
 dfp.close()
 
 
-# \0A is a hexadecimal code that gives a CR to your cell phone message
-# See --man smssend-- for more
-#Gatewaynaam	Gateway ID
-#Basic	2
-#Business	4
-#Business+	1
-if subprocess.call([
-	"smssend", "mollie.sms", "USER", "PASS", "FROM", number, sms_text[:160], "1"
-]):
-	sys.exit(1)
+client = messagebird.Client(client_key)
+client.message_create("DatuX", number, sms_text[:160], {  })
+
 
 #log it
 with open("/usr/lib/safesms/safesms.log", "a") as f:
