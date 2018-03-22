@@ -74,10 +74,29 @@ boolean triggered=false;
 int d=15;
 void loop()
 {
-step_s();
-delay(1000);
+//seconden
+
+if (random(0,2))
+  step_s();
+else
+  step_m();
+delay(random(0,1000));
+
 return;
 
+// // for (int i=0; i<160;i++)
+// {
+//   step_m();
+//   delay(d);
+// }
+//
+// while(Serial.read()==-1 ) yield();
+//
+// return;
+
+
+
+//// sensortester
 
 //   step_m();
 //   delay(d);
