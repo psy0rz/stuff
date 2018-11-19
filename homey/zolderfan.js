@@ -1,3 +1,13 @@
+//(C) edwin@datux.nl GPL
+
+//proportional fanspeed controller
+//hoe vochtiger de douche/zolder is ten opzichte van de overloop, hoe sneller de fan gezet word.
+//dus tijdens het douchen maximale fan, en daarna zal hij een tijd op lagere snelheid naventileren. 
+//(doordat de water uit de douchebak/handoeken verdampt)
+
+//als fan gebruik ik een Zehnder Stork Comfofan S, met een ESP8266 er op met daarop ESPEasy geinstalleerd.
+//(de fan werkt perfect met PWM aansturing op de 0-10v ingang)
+
 
 let tokens = args[0].split(' ');
 log("Zolder fan script: ",tokens);
