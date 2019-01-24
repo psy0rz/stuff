@@ -16,12 +16,7 @@ wlan.connect(config.wifi_essid, config.wifi_password)
 import webrepl
 webrepl.start()
 
-import temp
-# temp.start()
+import utelnetserver
+utelnetserver.start()
 
-
-# import meowton
-# meowton.wlan=wlan
-# from meowton import *
-#
-# start()
+# import temp
