@@ -1,5 +1,5 @@
 import time
-import warnings
+# import warnings
 
 
 def _clamp(value, limits):
@@ -19,7 +19,7 @@ try:
 except AttributeError:
     # time.monotonic() not available (using python < 3.3), fallback to time.time()
     _current_time = time.time
-    warnings.warn('time.monotonic() not available, using time.time() as fallback. Consider using Python 3.3 or newer to get monotonic time measurements.')
+    print('time.monotonic() not available, using time.time() as fallback. Consider using Python 3.3 or newer to get monotonic time measurements.')
 
 
 class PID(object):
@@ -40,11 +40,11 @@ class PID(object):
         self.Kp, self.Ki, self.Kd = Kp, Ki, Kd
         self.setpoint = setpoint
         self.sample_time = sample_time
-        
+
         self._min_output, self._max_output = output_limits
         self._auto_mode = auto_mode
         self.proportional_on_measurement = proportional_on_measurement
-        
+
         self._error_sum = 0
 
         self._last_time = _current_time()
@@ -134,7 +134,7 @@ class PID(object):
         if limits is None:
             self._min_output, self._max_output = None, None
             return
-        
+
         min_output, max_output = limits
 
         if None not in limits and max_output < min_output:

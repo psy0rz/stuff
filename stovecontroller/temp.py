@@ -4,6 +4,9 @@ import time
 import urequests
 import config
 from machine import Timer
+from PID import PID
+import machine
+import sys
 
 sck = Pin(14, Pin.OUT)
 cs = Pin(12, Pin.OUT)
@@ -36,23 +39,46 @@ def store(data):
 
 last_send=0
 req_data=""
+temp=0
 
-pid = PID(1, 0.1, 0.05, setpoint=180, sample_time=0.1, proportional_on_measurement=True, output_limits=((27,130)) )
+servosmall_pwm = machine.PWM(machine.Pin(5), freq=50)
+# pid = PID(1, 0.1, 0.05, setpoint=180, sample_time=1, proportional_on_measurement=True, output_limits=((27,130)) )
+pid = PID(4, 0.2, 1, setpoint=155, sample_time=1, proportional_on_measurement=True, output_limits=((27,130)) )
 
 def measure(t):
     global last_send
     global req_data
-    temp=max.read()
-    if temp==1024:
+    global temp
+
+    temp_total=0
+    temps=0
+    while temps<3:
+        while not max.ready():
+            pass
+
+        cur=max.read()
+        #skip errornous measurements
+        if temp!=0 and abs(cur-temp)>20:
+            print("SKIP {}".format(cur))
+        else:
+            temp_total=temp_total+cur
+            temps=temps+1
+
+    temp=temp_total/temps
+
+    if temp>=1000:
         #error, dont waist graph
+        print("READ ERROR")
         temp=-1
         return
 
     servosmall=int(pid(temp))
-    print("T={}, servo={}".format(temp, servosmall))
+    servosmall_pwm.duty(servosmall)
+    print("temp={}, setpoint={}, servo={}".format(temp, pid.setpoint, servosmall))
+
 
     # print(temp)
-    req_data=req_data+'temps temp={},servosmall={}\n'.format(temp, servosmall)
+    req_data=req_data+'temps temp={},servosmall={},setpoint={}\n'.format(temp, servosmall,pid.setpoint)
     if time.time()-last_send>=4:
         store(req_data)
         req_data=""
@@ -60,44 +86,43 @@ def measure(t):
 
 global servosmall
 def ctrl():
-    import machine
-    import sys
-    global servosmall
-    #SERVO
-    s = machine.PWM(machine.Pin(5), freq=50)
-    min=27
-    max=130
-    middle=77
-    servosmall=middle
+
 
     while True:
         c=sys.stdin.read(1)
-        if c=='q':
-            servosmall=servosmall+1
-        elif c=='a':
-            servosmall=servosmall-1
-        elif c=='w':
-            servosmall=servosmall+10
-        elif c=='s':
-            servosmall=servosmall-10
-        elif c=='e':
-            servosmall=max
-        elif c=='d':
-            servosmall=min
+        # if c=='q':
+        #     servosmall=servosmall+1
+        # elif c=='a':
+        #     servosmall=servosmall-1
+        # elif c=='w':
+        #     servosmall=servosmall+10
+        # elif c=='s':
+        #     servosmall=servosmall-10
+        # elif c=='e':
+        #     servosmall=max
+        # elif c=='d':
+        #     servosmall=min
+        if c=='t':
+            pid.setpoint=pid.setpoint+1
+        elif c=='g':
+            pid.setpoint=pid.setpoint-1
 
-        if servosmall<min:
-            servosmall=min
+        print(pid.setpoint)
 
-        if servosmall>max:
-            servosmall=max
+        # if servosmall<min:
+        #     servosmall=min
+        #
+        # if servosmall>max:
+        #     servosmall=max
 
 
-        print("servosmall={}".format(servosmall))
-        s.duty(servosmall)
 
-        if c=='z':
-            print("SLEEP")
-            s.duty(0)
+        # print("servosmall={}".format(servosmall))
+        # s.duty(servosmall)
+
+        # if c=='z':
+        #     print("SLEEP")
+        #     s.duty(0)
 
 
 tim = Timer(-1)
