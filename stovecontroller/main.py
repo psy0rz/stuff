@@ -16,9 +16,7 @@ wlan.connect(config.wifi_essid, config.wifi_password)
 import webrepl
 webrepl.start()
 
-import utelnetserver
-utelnetserver.start()
+# import utelnetserver
+# utelnetserver.start()
 
 import temp
-
-    
