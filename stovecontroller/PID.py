@@ -86,7 +86,8 @@ class PID(object):
         self._error_sum = _clamp(self._error_sum, self.output_limits)
 
         # compute final output
-        output = self._proportional + self._error_sum - self.Kd * d_input
+        self._differential=-(self.Kd * d_input)
+        output = self._proportional + self._error_sum + self._differential
         output = _clamp(output, self.output_limits)
 
         # keep track of state

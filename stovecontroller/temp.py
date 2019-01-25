@@ -88,7 +88,7 @@ def measure(t):
     # print("temp={}, setpoint={}, servo={}".format(temp, pid.setpoint, servosmall))
 
 
-    req_data=req_data+'temps temp={},servosmall={},setpoint={}\n'.format(temp, servosmall,pid.setpoint)
+    req_data=req_data+'temps temp={},servosmall={},setpoint={},P={},I={},D={}\n'.format(temp, servosmall,pid.setpoint, pid._proportional, pid._error_sum, pid._differential)
     # if time.time()-last_send>=0:
     store(req_data)
     req_data=""
@@ -105,7 +105,7 @@ def ctrl():
         # elif c=='a':
         #     servosmall=servosmall-1
         # elif c=='w':
-        #     servosmall=servosmall+10
+        #     servosmall=servosmpid
         # elif c=='s':
         #     servosmall=servosmall-10
         # elif c=='e':
