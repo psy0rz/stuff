@@ -13,7 +13,7 @@ cs = Pin(12, Pin.OUT)
 so = Pin(13, Pin.IN)
 led = Pin(2, Pin.OUT)
 
-max = MAX6675(sck, cs , so)
+sens_pipe = MAX6675(sck, cs , so)
 
 
 
@@ -49,21 +49,21 @@ servosmall_pwm = machine.PWM(machine.Pin(5), freq=50)
 # pid = PID(4, 0.2, 1, setpoint=config.setpoint, sample_time=1, proportional_on_measurement=False, output_limits=((27,130)) )
 pid = PID(8, 0.2, 1, setpoint=config.setpoint, sample_time=1, proportional_on_measurement=False, output_limits=((27,130)) )
 
-servosmall_last=0
+servosmall=int((130-27)/2)
 
 def measure(t):
     global last_send
     global req_data
     global temp
-    global servosmall_last
+    global servosmall
 
     temp_total=0
     temps=0
     while temps<3:
-        while not max.ready():
+        while not sens_pipe.ready():
             pass
 
-        cur=max.read()
+        cur=sens_pipe.read()
         #skip errornous measurements
         if temp!=0 and abs(cur-temp)>20:
             print("SKIP {}".format(cur))
@@ -79,12 +79,17 @@ def measure(t):
         temp=-1
         return
 
-    servosmall=int(pid(temp))
-    if servosmall_last!=servosmall:
+    #do the pid magic
+    servosmall_want=int(pid(temp))
+
+    #servo is slow, so do gradual steps or else it locks up
+    maxstep=10
+    step=max(min(maxstep, servosmall_want-servosmall), -maxstep)
+    if step:
+        servosmall=servosmall+step
         servosmall_pwm.duty(servosmall)
-        servosmall_last=servosmall
     else:
-        #turn off
+        #turn off, to prevent annoying noise
         servosmall_pwm.duty(0)
 
 
@@ -98,45 +103,44 @@ def measure(t):
     req_data=""
     last_send=time.time()
 
-global servosmall
-def ctrl():
-
-
-    while True:
-        c=sys.stdin.read(1)
-        # if c=='q':
-        #     servosmall=servosmall+1
-        # elif c=='a':
-        #     servosmall=servosmall-1
-        # elif c=='w':
-        #     servosmall=servosmpid
-        # elif c=='s':
-        #     servosmall=servosmall-10
-        # elif c=='e':
-        #     servosmall=max
-        # elif c=='d':
-        #     servosmall=min
-        if c=='t':
-            pid.setpoint=pid.setpoint+1
-        elif c=='g':
-            pid.setpoint=pid.setpoint-1
-
-        print(pid.setpoint)
-
-        # if servosmall<min:
-        #     servosmall=min
-        #
-        # if servosmall>max:
-        #     servosmall=max
-
-
-
-        # print("servosmall={}".format(servosmall))
-        # s.duty(servosmall)
-
-        # if c=='z':
-        #     print("SLEEP")
-        #     s.duty(0)
+# def ctrl():
+#
+#
+#     while True:
+#         c=sys.stdin.read(1)
+#         # if c=='q':
+#         #     servosmall=servosmall+1
+#         # elif c=='a':
+#         #     servosmall=servosmall-1
+#         # elif c=='w':
+#         #     servosmall=servosmpid
+#         # elif c=='s':
+#         #     servosmall=servosmall-10
+#         # elif c=='e':
+#         #     servosmall=max
+#         # elif c=='d':
+#         #     servosmall=min
+#         if c=='t':
+#             pid.setpoint=pid.setpoint+1
+#         elif c=='g':
+#             pid.setpoint=pid.setpoint-1
+#
+#         print(pid.setpoint)
+#
+#         # if servosmall<min:
+#         #     servosmall=min
+#         #
+#         # if servosmall>max:
+#         #     servosmall=max
+#
+#
+#
+#         # print("servosmall={}".format(servosmall))
+#         # s.duty(servosmall)
+#
+#         # if c=='z':
+#         #     print("SLEEP")
+#         #     s.duty(0)
 
 
 tim = Timer(-1)
