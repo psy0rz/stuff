@@ -1,0 +1,17 @@
+wifi_essid = "sdfsf"
+wifi_password="dsafasf"
+
+#scale id
+id="test"
+
+#influx db url
+db="http://192.168.13.22:8086/write?db=kachel"
+
+setpoint=210
+
+#if temp goes below coldstart_temp, we will open te valve for coldstart_time seconds
+coldstart_temp=100
+coldstart_time=1800
+
+#open the valve above this temp ,because the bypass valve is opened.
+bypass_open=230
