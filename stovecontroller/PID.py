@@ -51,6 +51,7 @@ class PID(object):
         self._last_output = None
         self._proportional = 0
         self._last_input = None
+        self._differential = 0
 
     def __call__(self, input_):
         """

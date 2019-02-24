@@ -47,15 +47,22 @@ servosmall_pwm = machine.PWM(machine.Pin(5), freq=50)
 
 # pid = PID(4, 0.2, 1, setpoint=config.setpoint, sample_time=1, proportional_on_measurement=True, output_limits=((27,130)) )
 # pid = PID(4, 0.2, 1, setpoint=config.setpoint, sample_time=1, proportional_on_measurement=False, output_limits=((27,130)) )
-pid = PID(8, 0.2, 1, setpoint=config.setpoint, sample_time=1, proportional_on_measurement=False, output_limits=((27,130)) )
+servo_max=130
+servo_min=27
+pid = PID(8, 0.2, 1, setpoint=config.setpoint, sample_time=1, proportional_on_measurement=False, output_limits=((servo_min,servo_max)) )
 
-servosmall=int((130-27)/2)
+servosmall=int((servo_max-servo_min)/2)
+
+start_time=-config.coldstart_time
+last_temp=0
 
 def measure(t):
     global last_send
     global req_data
     global temp
     global servosmall
+    global start_time
+    global last_temp
 
     temp_total=0
     temps=0
@@ -79,8 +86,18 @@ def measure(t):
         temp=-1
         return
 
-    #do the pid magic
-    servosmall_want=int(pid(temp))
+    #dont regulate when we're still starting up the stove (extra air outlet is open)
+    if temp<config.coldstart_temp:
+        start_time=time.time()
+
+    if time.time()-start_time>config.coldstart_time and  temp<=config.bypass_open and temp-last_temp<2:
+        #do the pid magic
+        servosmall_want=int(pid(temp))
+    else:
+        #still starting up
+        servosmall_want=servo_max
+
+    last_temp=temp
 
     #servo is slow, so do gradual steps or else it locks up
     maxstep=10
