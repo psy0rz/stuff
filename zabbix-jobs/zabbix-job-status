@@ -32,8 +32,13 @@ for IGNORE in $*; do
 done
 
 #add job to job-database
-mkdir -p $JOBDIR &>/dev/null || true
-echo "$PAR_INTERVAL" > $JOBDIR/$PAR_JOBNAME 
+mkdir -p $JOBDIR &>/dev/null
+
+NEW=0
+if ! [ -e "$JOBDIR/$PAR_JOBNAME" ]; then
+    NEW=1
+fi
+echo "$PAR_INTERVAL" > "$JOBDIR/$PAR_JOBNAME"
 
 UPDATES=""
 
@@ -67,3 +72,8 @@ UPDATES=$UPDATES"- job.exit_$PAR_INTERVAL[$PAR_JOBNAME] $PAR_EXITCODE\n"
 echo "Sending updates to zabbix:"
 echo -en "$UPDATES"
 echo -en "$UPDATES" | zabbix_sender -vv  -c $ZABBIX_CONF -i -
+if [ "$NEW" == "1" ]; then
+    echo "Waiting for first-time zabbix job discovery..."
+    sleep 65
+    echo -en "$UPDATES" | zabbix_sender -vv  -c $ZABBIX_CONF -i -
+fi
