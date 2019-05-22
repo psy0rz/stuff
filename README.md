@@ -2,6 +2,6 @@
 
 Random stuff and scripts
 
-Release under GPL.
+Released under GPL.
 
 For commercial support or customization you can contact me at edwin@datux.nl.
