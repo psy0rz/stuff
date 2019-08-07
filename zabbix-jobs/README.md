@@ -1,6 +1,6 @@
-= Zabbix job monitor =
+# Zabbix job monitor 
 
-== Usage ==
+## Usage 
 
 ```
 Usage: /bin/zabbix-job-status <jobname> <interval> <exitcode> [ <ignorecode>... ] 
@@ -14,7 +14,7 @@ Interval is used to generate alerts if the job is not run for a specific time. (
 Specify ignorecodes for exitcodes that you want to 'ignore' and report 0 instead. Usefull for ignoring exit code 24 in rsync jobs for example.
 ```
 
-== Example ==
+## Example 
 
 Example backup script:
 ```
