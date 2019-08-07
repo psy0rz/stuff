@@ -32,13 +32,15 @@ Job backup_server01 on backup02 has exit code 1
 
 ```
 
-If the job fails every day for a week you'll get a trigger with High level:
+If it doesnt send any report for 2 days it will also trigger:
+```
+Last daily report of backup_server01 on backup02 too long ago.
+```
+
+If the last succesfull job is longer than a week ago it will give a high alert:
 ```
 Last succesfull daily job backup_server01 on backup02 was longer than a week ago.
 ```
 
 For hourly, weekly and monthly backups there are other timeperiodes, look in the template.
-
-
-
 
