@@ -14,6 +14,8 @@ Interval is used to generate alerts if the job is not run for a specific time. (
 Specify ignorecodes for exitcodes that you want to 'ignore' and report 0 instead. Usefull for ignoring exit code 24 in rsync jobs for example.
 ```
 
+Import and enable the template first. You dont have to create the jobs manually, the script will do that automaticly for you.
+
 ## Example 
 
 Example backup script:
