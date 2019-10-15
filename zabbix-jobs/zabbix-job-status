@@ -71,9 +71,10 @@ UPDATES=$UPDATES"- job.exit_$PAR_INTERVAL[$PAR_JOBNAME] $PAR_EXITCODE\n"
 
 echo "Sending updates to zabbix:"
 echo -en "$UPDATES"
-echo -en "$UPDATES" | zabbix_sender -vv  -c $ZABBIX_CONF -i -
 if [ "$NEW" == "1" ]; then
+    #partially fails the first time:
+    echo -en "$UPDATES" | zabbix_sender -vv  -c $ZABBIX_CONF -i - || true
     echo "Waiting for first-time zabbix job discovery..."
     sleep 65
-    echo -en "$UPDATES" | zabbix_sender -vv  -c $ZABBIX_CONF -i -
 fi
+echo -en "$UPDATES" | zabbix_sender -vv  -c $ZABBIX_CONF -i -
