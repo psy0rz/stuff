@@ -40,8 +40,8 @@ void setup() {
   pinMode(PIN_RESET_KNOP,OUTPUT);
   pinMode(PIN_HEATER,OUTPUT);
 
-  digitalWrite(PIN_RESET_KNOP,1);
-  digitalWrite(PIN_HEATER,1);
+  digitalWrite(PIN_RESET_KNOP,0);
+  digitalWrite(PIN_HEATER,0);
 
   temps.begin();
 
@@ -56,9 +56,9 @@ void setup() {
 //druk reset knop in
 void reset_ketel()
 {
-  digitalWrite(PIN_RESET_KNOP,0);
-  delay(500);
   digitalWrite(PIN_RESET_KNOP,1);
+  delay(500);
+  digitalWrite(PIN_RESET_KNOP,0);
 
 }
 
@@ -102,7 +102,7 @@ void regel_temperatuur()
   {
     verwarmen=0;
   }
-  digitalWrite(PIN_HEATER,!verwarmen);
+  digitalWrite(PIN_HEATER,verwarmen);
 
 
   //display update
