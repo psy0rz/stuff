@@ -11,9 +11,9 @@
 // display op 5 volt
 
 #define PIN_RESET_LAMP D5 //lamp met storings signaal
-#define PIN_RESET_KNOP D6 //relay board
+#define PIN_RESET_KNOP D3 //reset knop
 
-#define PIN_HEATER D3 //olie verwarmings element
+#define PIN_HEATER D6 //olie verwarmings element
 #define PIN_TEMP_SENSOR D7 // olie temperatuur sensor
 #define PIN_TEMP_SETTING A0 //temperatuur instelling potmeter
 #define TEMP_MIN 10 //min/max bereik temperatuur potmeter
@@ -56,26 +56,22 @@ void setup() {
 //druk reset knop in
 void reset_ketel()
 {
-  delay(500);
-  
   digitalWrite(PIN_RESET_KNOP,0);
   delay(500);
   digitalWrite(PIN_RESET_KNOP,1);
-  delay(1000);
 
 }
-
-
 
 //is er een ketel storing?
 bool ketel_storing()
 {
   //als input "knippert" met 50hz is er storing
   bool begin_status=digitalRead(PIN_RESET_LAMP);
-  for (int i=0; i<100; i++)
+  for (int i=0; i<10; i++)
   {
     if (digitalRead(PIN_RESET_LAMP)!=begin_status)
       return(true);
+      delay(10);
   }
   return(false);
 
@@ -106,7 +102,7 @@ void regel_temperatuur()
   {
     verwarmen=0;
   }
-  digitalWrite(PIN_HEATER,verwarmen);
+  digitalWrite(PIN_HEATER,!verwarmen);
 
 
   //display update
@@ -119,16 +115,21 @@ void regel_temperatuur()
   {
     lcd.printf("%.1f (%.1f)   ", gemeten_temp, gewenste_temp);    
   }
-  
-
-  
-
-
 
 }
 
-int storing_count=0;
-unsigned long storing_start_time=0;
+
+//wacht aantal seconden en blijf temperatuur regellen.
+void wacht_en_regel(int seconden)
+{
+  unsigned long start_time=millis();
+  while(millis()-start_time < seconden*1000)
+  {
+    yield();
+    regel_temperatuur();
+  }
+}
+
 
 
 void loop() {
@@ -140,9 +141,10 @@ void loop() {
   
   //storing, wacht kort
   lcd.clear();
-  lcd.println("Wacht kort...");
-  delay(RESET_SNEL*1000);
+  lcd.print("Wacht kort...");
+  wacht_en_regel(RESET_SNEL);
 
+  //reset
   lcd.clear();
   lcd.print("Resetten");
   reset_ketel();
@@ -155,13 +157,12 @@ void loop() {
   //storing, wacht lang
   lcd.clear();
   lcd.print("Wacht lang...");
-  delay(RESET_LANG*1000);
+  wacht_en_regel(RESET_LANG);
 
+  //reset
   lcd.clear();
   lcd.print("Resetten");
   reset_ketel();
-
-
 
 }
 
