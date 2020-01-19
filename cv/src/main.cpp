@@ -16,11 +16,11 @@
 #define PIN_HEATER D6 //olie verwarmings element
 #define PIN_TEMP_SENSOR D7 // olie temperatuur sensor
 #define PIN_TEMP_SETTING A0 //temperatuur instelling potmeter
-#define TEMP_MIN 10 //min/max bereik temperatuur potmeter
-#define TEMP_MAX 40
+#define TEMP_MIN 20 //min/max bereik temperatuur potmeter
+#define TEMP_MAX 60
 
-#define RESET_SNEL 3 //seconden
-#define RESET_LANG 3 //seconden
+#define RESET_SNEL 10 //seconden
+#define RESET_LANG 3600*2 //seconden
 
 
 ///////////////////////////////////////////////////// begin programma
@@ -87,18 +87,22 @@ void regel_temperatuur()
 
   //lees olie temperatuur
   temps.requestTemperatures();
+
   float gemeten_temp=temps.getTempCByIndex(0);
+  if (gemeten_temp==-127)
+    return;
+
   float gewenste_temp=TEMP_MIN+ (float(analogRead(PIN_TEMP_SETTING))*(TEMP_MAX-TEMP_MIN)/1024);
 
 
   //verwarmen
-  if (gemeten_temp<gewenste_temp-0.5)
+  if (gemeten_temp<=gewenste_temp-0.1)
   {
     verwarmen=1;
   }
 
   //koelen
-  if (gemeten_temp>gewenste_temp+0.5)
+  if (gemeten_temp>=gewenste_temp+0.1)
   {
     verwarmen=0;
   }
