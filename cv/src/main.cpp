@@ -21,7 +21,7 @@
 
 #define RESET_SNEL 10 //seconden
 #define RESET_LANG 3600*2 //seconden
-
+#define MAX_RESETS 3 //max aantal snelle resets
 
 ///////////////////////////////////////////////////// begin programma
 
@@ -120,11 +120,15 @@ void regel_temperatuur()
     lcd.printf("%.1f (%.1f)   ", gemeten_temp, gewenste_temp);    
   }
 
+
+  
 }
 
 
+
+
 //wacht aantal seconden en blijf temperatuur regellen.
-void wacht_en_regel(int seconden)
+void wacht_en_regel(unsigned long seconden)
 {
   unsigned long start_time=millis();
   while(millis()-start_time < seconden*1000)
@@ -134,39 +138,53 @@ void wacht_en_regel(int seconden)
   }
 }
 
-
+int resets_over=MAX_RESETS;
+unsigned long tijd_laatste_reset_verhoging=millis(); //in mS
+int totaal_resets=0;
 
 void loop() {
 
-  //temp regelen zolang er geen storing is
-  lcd.clear();
-  lcd.print("Ketel OK");
-  while(!ketel_storing()) regel_temperatuur();
+  lcd.setCursor(0,0);
+
+  //reset teller verhogen
+  unsigned long seconden_sinds_laatste_verhoging=(millis()-tijd_laatste_reset_verhoging)/1000;
+  if (seconden_sinds_laatste_verhoging >= RESET_LANG)
+  {
+    if (resets_over<MAX_RESETS)
+      resets_over++;
+    
+    tijd_laatste_reset_verhoging=millis();
+
+    //reset display voor de zekerheid
+    lcd.begin(16,2);
+  }
+
+  //storing?
+  if (ketel_storing())
+  {
+    //mag resetten?
+    if (resets_over>0)
+    {
+      lcd.print("RESETTEN        ");
+      wacht_en_regel(RESET_SNEL);
+      reset_ketel();
+      resets_over--;
+      totaal_resets++;
+    }
+    else
+    //kk de kk wachten
+    {
+      lcd.printf("WACHT %ds    ", int(RESET_LANG-seconden_sinds_laatste_verhoging));
+    }    
+  }
+  else
+  {
+    lcd.printf("OK R=%d (%d)            ", totaal_resets, resets_over);
+  }
   
-  //storing, wacht kort
-  lcd.clear();
-  lcd.print("Wacht kort...");
-  wacht_en_regel(RESET_SNEL);
 
-  //reset
-  lcd.clear();
-  lcd.print("Resetten");
-  reset_ketel();
+  regel_temperatuur();
 
-  //temp regelen zolang er geen storing is
-  lcd.clear();
-  lcd.print("Ketel OK");
-  while(!ketel_storing()) regel_temperatuur();
-
-  //storing, wacht lang
-  lcd.clear();
-  lcd.print("Wacht lang...");
-  wacht_en_regel(RESET_LANG);
-
-  //reset
-  lcd.clear();
-  lcd.print("Resetten");
-  reset_ketel();
 
 }
 
