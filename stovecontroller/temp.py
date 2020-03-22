@@ -8,23 +8,10 @@ from PID import PID
 import machine
 import sys
 import uasyncio
+from pins import *
 
-#pin mapping
-D0=16   #GPIO
-D1=5    #GPIO, I2C SCL
-D2=4    #GPIO, I2C SDA
-D3=0	#GPIO
-D4=2	#GPIO
-D5=14	#GPIO, SPI SCK (Serial Clock)
-D6=12	#GPIO, SPI MISO (Master in, Slave out)
-D7=13	#GPIO, SPI MOSI (Master out, Slave in)
-D8=15	#GPIO, SPI SS (Slave select)
-RX=3	#Receive
-TX=1	#Trans
-
-
-
-
+#pin assignments
+import sparta #D1 en D2
 sck = Pin(D5, Pin.OUT)
 cs = Pin(D6, Pin.OUT)
 so = Pin(D7, Pin.IN)
@@ -33,8 +20,6 @@ servosmall_pwm = machine.PWM(machine.Pin(D3), freq=50)
 
 
 sens_pipe = MAX6675(sck, cs , so)
-
-
 
 def store(data):
     try:
@@ -83,63 +68,67 @@ def measure_loop():
     global last_temp
 
     while True:
-        temp_total=0
-        temps=0
-        while temps<3:
-            while not sens_pipe.ready():
-                pass
+        try:
+            temp_total=0
+            temps=0
+            while temps<3:
+                while not sens_pipe.ready():
+                    pass
 
-            cur=sens_pipe.read()
-            #skip errornous measurements
-            if temp!=0 and abs(cur-temp)>20:
-                print("SKIP {}".format(cur))
+                cur=sens_pipe.read()
+                #skip errornous measurements
+                if temp!=0 and abs(cur-temp)>20:
+                    print("SKIP {}".format(cur))
+                else:
+                    temp_total=temp_total+cur
+                    temps=temps+1
+
+            temp=temp_total/temps
+
+            if temp>=1000:
+                #error, dont waist graph
+                print("READ ERROR")
+                temp=-1
+                continue
+
+            oxygene=sparta.read_oxygene()
+            print("T={}, O2={}".format(temp, oxygene))
+
+            #dont regulate when we're still starting up the stove (extra air outlet is open)
+            if temp<config.coldstart_temp:
+                start_time=time.time()
+
+            if time.time()-start_time>config.coldstart_time and  temp<=config.bypass_open and temp-last_temp<2:
+                #do the pid magic
+                servosmall_want=int(pid(temp))
             else:
-                temp_total=temp_total+cur
-                temps=temps+1
+                #still starting up
+                servosmall_want=servo_max
 
-        temp=temp_total/temps
+            last_temp=temp
 
-        if temp>=1000:
-            #error, dont waist graph
-            print("READ ERROR")
-            temp=-1
-            return
-
-        print(temp)
-
-        #dont regulate when we're still starting up the stove (extra air outlet is open)
-        if temp<config.coldstart_temp:
-            start_time=time.time()
-
-        if time.time()-start_time>config.coldstart_time and  temp<=config.bypass_open and temp-last_temp<2:
-            #do the pid magic
-            servosmall_want=int(pid(temp))
-        else:
-            #still starting up
-            servosmall_want=servo_max
-
-        last_temp=temp
-
-        #servo is slow, so do gradual steps or else it locks up
-        maxstep=10
-        step=max(min(maxstep, servosmall_want-servosmall), -maxstep)
-        if step:
-            servosmall=servosmall+step
-            servosmall_pwm.duty(servosmall)
-        else:
-            #turn off, to prevent annoying noise
-            servosmall_pwm.duty(0)
+            #servo is slow, so do gradual steps or else it locks up
+            maxstep=10
+            step=max(min(maxstep, servosmall_want-servosmall), -maxstep)
+            if step:
+                servosmall=servosmall+step
+                servosmall_pwm.duty(servosmall)
+            else:
+                #turn off, to prevent annoying noise
+                servosmall_pwm.duty(0)
 
 
 
-        # print("temp={}, setpoint={}, servo={}".format(temp, pid.setpoint, servosmall))
+            # print("temp={}, setpoint={}, servo={}".format(temp, pid.setpoint, servosmall))
 
 
-        req_data=req_data+'temps temp={},servosmall={},setpoint={},P={},I={},D={}\n'.format(temp, servosmall,pid.setpoint, pid._proportional, pid._error_sum, pid._differential)
-        # if time.time()-last_send>=0:
-        store(req_data)
-        req_data=""
-        last_send=time.time()
+            req_data=req_data+'temps temp={},servosmall={},setpoint={},P={},I={},D={},oxygene={}\n'.format(temp, servosmall,pid.setpoint, pid._proportional, pid._error_sum, pid._differential, oxygene)
+            # if time.time()-last_send>=0:
+            store(req_data)
+            req_data=""
+            last_send=time.time()
+        except Exception as e:
+            print(str(e))
 
         await uasyncio.sleep_ms(1000)
 
