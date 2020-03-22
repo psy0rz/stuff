@@ -7,12 +7,29 @@ from machine import Timer
 from PID import PID
 import machine
 import sys
+import uasyncio
 
-sck = Pin(14, Pin.OUT)
-cs = Pin(12, Pin.OUT)
-so = Pin(13, Pin.IN)
-led = Pin(2, Pin.OUT)
-servosmall_pwm = machine.PWM(machine.Pin(5), freq=50)
+#pin mapping
+D0=16   #GPIO
+D1=5    #GPIO, I2C SCL
+D2=4    #GPIO, I2C SDA
+D3=0	#GPIO
+D4=2	#GPIO
+D5=14	#GPIO, SPI SCK (Serial Clock)
+D6=12	#GPIO, SPI MISO (Master in, Slave out)
+D7=13	#GPIO, SPI MOSI (Master out, Slave in)
+D8=15	#GPIO, SPI SS (Slave select)
+RX=3	#Receive
+TX=1	#Trans
+
+
+
+
+sck = Pin(D5, Pin.OUT)
+cs = Pin(D6, Pin.OUT)
+so = Pin(D7, Pin.IN)
+led = Pin(D4, Pin.OUT) 
+servosmall_pwm = machine.PWM(machine.Pin(D1), freq=50)
 
 
 sens_pipe = MAX6675(sck, cs , so)
@@ -57,7 +74,7 @@ servosmall=int((servo_max-servo_min)/2)
 start_time=-config.coldstart_time
 last_temp=0
 
-def measure(t):
+def measure_loop():
     global last_send
     global req_data
     global temp
@@ -65,61 +82,67 @@ def measure(t):
     global start_time
     global last_temp
 
-    temp_total=0
-    temps=0
-    while temps<3:
-        while not sens_pipe.ready():
-            pass
+    while True:
+        temp_total=0
+        temps=0
+        while temps<3:
+            while not sens_pipe.ready():
+                pass
 
-        cur=sens_pipe.read()
-        #skip errornous measurements
-        if temp!=0 and abs(cur-temp)>20:
-            print("SKIP {}".format(cur))
+            cur=sens_pipe.read()
+            #skip errornous measurements
+            if temp!=0 and abs(cur-temp)>20:
+                print("SKIP {}".format(cur))
+            else:
+                temp_total=temp_total+cur
+                temps=temps+1
+
+        temp=temp_total/temps
+
+        if temp>=1000:
+            #error, dont waist graph
+            print("READ ERROR")
+            temp=-1
+            return
+
+        print(temp)
+
+        #dont regulate when we're still starting up the stove (extra air outlet is open)
+        if temp<config.coldstart_temp:
+            start_time=time.time()
+
+        if time.time()-start_time>config.coldstart_time and  temp<=config.bypass_open and temp-last_temp<2:
+            #do the pid magic
+            servosmall_want=int(pid(temp))
         else:
-            temp_total=temp_total+cur
-            temps=temps+1
+            #still starting up
+            servosmall_want=servo_max
 
-    temp=temp_total/temps
+        last_temp=temp
 
-    if temp>=1000:
-        #error, dont waist graph
-        print("READ ERROR")
-        temp=-1
-        return
-
-    #dont regulate when we're still starting up the stove (extra air outlet is open)
-    if temp<config.coldstart_temp:
-        start_time=time.time()
-
-    if time.time()-start_time>config.coldstart_time and  temp<=config.bypass_open and temp-last_temp<2:
-        #do the pid magic
-        servosmall_want=int(pid(temp))
-    else:
-        #still starting up
-        servosmall_want=servo_max
-
-    last_temp=temp
-
-    #servo is slow, so do gradual steps or else it locks up
-    maxstep=10
-    step=max(min(maxstep, servosmall_want-servosmall), -maxstep)
-    if step:
-        servosmall=servosmall+step
-        servosmall_pwm.duty(servosmall)
-    else:
-        #turn off, to prevent annoying noise
-        servosmall_pwm.duty(0)
+        #servo is slow, so do gradual steps or else it locks up
+        maxstep=10
+        step=max(min(maxstep, servosmall_want-servosmall), -maxstep)
+        if step:
+            servosmall=servosmall+step
+            servosmall_pwm.duty(servosmall)
+        else:
+            #turn off, to prevent annoying noise
+            servosmall_pwm.duty(0)
 
 
 
-    # print("temp={}, setpoint={}, servo={}".format(temp, pid.setpoint, servosmall))
+        # print("temp={}, setpoint={}, servo={}".format(temp, pid.setpoint, servosmall))
 
 
-    req_data=req_data+'temps temp={},servosmall={},setpoint={},P={},I={},D={}\n'.format(temp, servosmall,pid.setpoint, pid._proportional, pid._error_sum, pid._differential)
-    # if time.time()-last_send>=0:
-    store(req_data)
-    req_data=""
-    last_send=time.time()
+        req_data=req_data+'temps temp={},servosmall={},setpoint={},P={},I={},D={}\n'.format(temp, servosmall,pid.setpoint, pid._proportional, pid._error_sum, pid._differential)
+        # if time.time()-last_send>=0:
+        store(req_data)
+        req_data=""
+        last_send=time.time()
+
+        await uasyncio.sleep_ms(1000)
+
 
 # def ctrl():
 #
@@ -160,8 +183,12 @@ def measure(t):
 #         #     print("SLEEP")
 #         #     s.duty(0)
 
-
-tim = Timer(-1)
-tim.init(period=1000, mode=Timer.PERIODIC, callback=measure)
-
-#ctrl()
+def run():
+    event_loop=uasyncio.get_event_loop()
+    event_loop.create_task(measure_loop())
+   
+    # # start webinterface?
+    # if config.run_webserver:
+    #     webserver.run()
+    # else:
+    event_loop.run_forever()
