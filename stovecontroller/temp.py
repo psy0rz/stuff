@@ -29,7 +29,7 @@ sck = Pin(D5, Pin.OUT)
 cs = Pin(D6, Pin.OUT)
 so = Pin(D7, Pin.IN)
 led = Pin(D4, Pin.OUT) 
-servosmall_pwm = machine.PWM(machine.Pin(D1), freq=50)
+servosmall_pwm = machine.PWM(machine.Pin(D3), freq=50)
 
 
 sens_pipe = MAX6675(sck, cs , so)
