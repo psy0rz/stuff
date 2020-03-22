@@ -12,6 +12,8 @@ sck = Pin(14, Pin.OUT)
 cs = Pin(12, Pin.OUT)
 so = Pin(13, Pin.IN)
 led = Pin(2, Pin.OUT)
+servosmall_pwm = machine.PWM(machine.Pin(5), freq=50)
+
 
 sens_pipe = MAX6675(sck, cs , so)
 
@@ -41,7 +43,6 @@ last_send=0
 req_data=""
 temp=0
 
-servosmall_pwm = machine.PWM(machine.Pin(5), freq=50)
 # pid = PID(1, 0.1, 0.05, setpoint=180, sample_time=1, proportional_on_measurement=True, output_limits=((27,130)) )
 
 
