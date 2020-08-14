@@ -36,6 +36,8 @@ DallasTemperature temps(&oneWire);
 //initialisatie van alles
 void setup() {
   Serial.begin(115200); 
+  Serial.println("\nOpstarten");
+
   pinMode(PIN_RESET_LAMP, INPUT_PULLUP);
   pinMode(PIN_RESET_KNOP,OUTPUT);
   pinMode(PIN_HEATER,OUTPUT);
@@ -50,6 +52,7 @@ void setup() {
   lcd.print("GME ketel 1.0");
   delay(1000);
 
+  Serial.println("Opstarten klaar.");
 
 }
 
@@ -85,12 +88,18 @@ void regel_temperatuur()
 {
   yield();
 
+  //cursor op goeie plek
+  lcd.setCursor(0,1);
+
   //lees olie temperatuur
   temps.requestTemperatures();
 
   float gemeten_temp=temps.getTempCByIndex(0);
-  if (gemeten_temp==-127)
+  if (gemeten_temp==-127){
+    lcd.printf("temp sens error");
+    Serial.println("temp sens error");
     return;
+  }
 
   float gewenste_temp=TEMP_MIN+ (float(analogRead(PIN_TEMP_SETTING))*(TEMP_MAX-TEMP_MIN)/1024);
 
@@ -109,8 +118,6 @@ void regel_temperatuur()
   digitalWrite(PIN_HEATER,verwarmen);
 
 
-  //display update
-  lcd.setCursor(0,1);
   if (verwarmen)
   {
     lcd.printf("%.1f (%.1f) * ", gemeten_temp, gewenste_temp);
@@ -135,6 +142,7 @@ void wacht_en_regel(unsigned long seconden)
   {
     yield();
     regel_temperatuur();
+    Serial.println("Loop");
   }
 }
 
@@ -144,6 +152,7 @@ int totaal_resets=0;
 
 void loop() {
 
+  Serial.println("loop");
   lcd.setCursor(0,0);
 
   //reset teller verhogen
