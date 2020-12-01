@@ -52,9 +52,9 @@ temp=0
 # pid = PID(4, 0.2, 1, setpoint=config.setpoint, sample_time=1, proportional_on_measurement=False, output_limits=((27,130)) )
 servo_max=130
 servo_min=27
-pid = PID(8, 0.2, 1, setpoint=config.setpoint, sample_time=1, proportional_on_measurement=False, output_limits=((servo_min,servo_max)) )
+pid = PID(8, 0.2, 1, setpoint=config.setpoint, sample_time=0, proportional_on_measurement=False, output_limits=((servo_min,servo_max)) )
 
-servosmall=int((servo_max-servo_min)/2)
+servosmall=None
 
 start_time=-config.coldstart_time
 last_temp=0
@@ -71,52 +71,71 @@ def measure_loop():
         try:
             temp_total=0
             temps=0
-            while temps<3:
-                while not sens_pipe.ready():
-                    pass
+            # while temps<3:
+            #     while not sens_pipe.ready():
+            #         pass
 
-                cur=sens_pipe.read()
-                #skip errornous measurements
-                if temp!=0 and abs(cur-temp)>20:
-                    print("SKIP {}".format(cur))
-                else:
-                    temp_total=temp_total+cur
-                    temps=temps+1
+            #     cur=sens_pipe.read()
+            #     #skip errornous measurements
+            #     if temp!=0 and abs(cur-temp)>20:
+            #         print("SKIP {}".format(cur))
+            #         temp=cur
+            #     else:
+            #         temp_total=temp_total+cur
+            #         temps=temps+1
 
-            temp=temp_total/temps
+            # temp=temp_total/temps
+            while not sens_pipe.ready():
+                pass
 
-            if temp>=1000:
+            temp_read=sens_pipe.read()
+            if temp_read>=1000:
                 #error, dont waist graph
-                print("READ ERROR")
-                temp=-1
+                print("TEMP READ ERROR")
                 continue
 
-            oxygene=sparta.read_oxygene()
-            print("T={}, O2={}".format(temp, oxygene))
+            temp=temp*0.9+ temp_read*0.1
+
+
+            # oxygene=sparta.read_oxygene()
+            oxygene=0
 
             #dont regulate when we're still starting up the stove (extra air outlet is open)
             if temp<config.coldstart_temp:
                 start_time=time.time()
 
-            if time.time()-start_time>config.coldstart_time and  temp<=config.bypass_open and temp-last_temp<2:
+            if time.time()-start_time<config.coldstart_time:
+                status="coldstarting"
+                servosmall_want=servo_max
+            if temp>config.bypass_open:
+                status="bypass open"
+                servosmall_want=servo_max
+            else:
+                status="regulating"
                 #do the pid magic
                 servosmall_want=int(pid(temp))
-            else:
-                #still starting up
-                servosmall_want=servo_max
 
             last_temp=temp
 
+            if servosmall==None:
+                servosmall=servosmall_want
+
             #servo is slow, so do gradual steps or else it locks up
-            maxstep=10
+            maxstep=1000
             step=max(min(maxstep, servosmall_want-servosmall), -maxstep)
             if step:
                 servosmall=servosmall+step
-                servosmall_pwm.duty(servosmall)
-            else:
-                #turn off, to prevent annoying noise
-                servosmall_pwm.duty(0)
+            servosmall_pwm.duty(servosmall)
+            # else:
+            #     #turn off, to prevent annoying noise
+            #     servosmall_pwm.duty(0)
 
+            print("{:12} {:5.1f}°C  {:0.0%} ({:0.0%})".format(
+                status, 
+                temp, 
+                (servosmall_want-servo_min)/(servo_max-servo_min), 
+                (servosmall-servo_min)/(servo_max-servo_min)
+            ))
 
 
             # print("temp={}, setpoint={}, servo={}".format(temp, pid.setpoint, servosmall))
@@ -124,13 +143,14 @@ def measure_loop():
 
             req_data=req_data+'temps temp={},servosmall={},setpoint={},P={},I={},D={},oxygene={}\n'.format(temp, servosmall,pid.setpoint, pid._proportional, pid._error_sum, pid._differential, oxygene)
             # if time.time()-last_send>=0:
-            store(req_data)
+            # store(req_data)
             req_data=""
             last_send=time.time()
         except Exception as e:
+            raise
             print(str(e))
 
-        await uasyncio.sleep_ms(1000)
+        # await uasyncio.sleep_ms(1000)
 
 
 # def ctrl():
