@@ -43,7 +43,7 @@ def store(data):
 
 last_send=0
 req_data=""
-temp=0
+temp=None
 
 # pid = PID(1, 0.1, 0.05, setpoint=180, sample_time=1, proportional_on_measurement=True, output_limits=((27,130)) )
 
@@ -52,12 +52,18 @@ temp=0
 # pid = PID(4, 0.2, 1, setpoint=config.setpoint, sample_time=1, proportional_on_measurement=False, output_limits=((27,130)) )
 servo_max=130
 servo_min=27
-pid = PID(8, 0.2, 1, setpoint=config.setpoint, sample_time=0, proportional_on_measurement=False, output_limits=((servo_min,servo_max)) )
+pid = PID(8, 0.2, 0, setpoint=config.setpoint, sample_time=0, proportional_on_measurement=False, output_limits=((servo_min,servo_max)) )
+# pid = PID(8, 0.8, 0, setpoint=config.setpoint, sample_time=0, proportional_on_measurement=False, output_limits=((servo_min,servo_max)) )
+# pid = PID(8, 0.4, 0, setpoint=config.setpoint, sample_time=0, proportional_on_measurement=False, output_limits=((servo_min,servo_max)) )
 
 servosmall=None
 
 start_time=-config.coldstart_time
 last_temp=0
+
+
+def calc_factor(pwm):
+    return (pwm-servo_min)/(servo_max-servo_min)
 
 def measure_loop():
     global last_send
@@ -67,24 +73,11 @@ def measure_loop():
     global start_time
     global last_temp
 
+
+    last_diff=0
+    
     while True:
         try:
-            temp_total=0
-            temps=0
-            # while temps<3:
-            #     while not sens_pipe.ready():
-            #         pass
-
-            #     cur=sens_pipe.read()
-            #     #skip errornous measurements
-            #     if temp!=0 and abs(cur-temp)>20:
-            #         print("SKIP {}".format(cur))
-            #         temp=cur
-            #     else:
-            #         temp_total=temp_total+cur
-            #         temps=temps+1
-
-            # temp=temp_total/temps
             while not sens_pipe.ready():
                 pass
 
@@ -94,16 +87,14 @@ def measure_loop():
                 print("TEMP READ ERROR")
                 continue
 
+            if temp==None:
+                temp=temp_read
+
             temp=temp*0.9+ temp_read*0.1
-
-
-            # oxygene=sparta.read_oxygene()
-            oxygene=0
 
             #dont regulate when we're still starting up the stove (extra air outlet is open)
             if temp<config.coldstart_temp:
                 start_time=time.time()
-
             if time.time()-start_time<config.coldstart_time:
                 status="coldstarting"
                 servosmall_want=servo_max
@@ -120,21 +111,29 @@ def measure_loop():
             if servosmall==None:
                 servosmall=servosmall_want
 
-            #servo is slow, so do gradual steps or else it locks up
-            maxstep=1000
-            step=max(min(maxstep, servosmall_want-servosmall), -maxstep)
-            if step:
-                servosmall=servosmall+step
-            servosmall_pwm.duty(servosmall)
-            # else:
-            #     #turn off, to prevent annoying noise
-            #     servosmall_pwm.duty(0)
+            #prevent 1 step jitter because of rounding errors
+            diff=servosmall_want-servosmall
+            if diff!=0:
+                #it needs to be either a big step (>1), OR a step in the same direction.
+                if abs(diff)>1 or (diff>0 and last_diff>0) or (diff<0 and last_diff<0):
+                    servosmall=servosmall_want
+                    last_diff=diff
 
-            print("{:12} {:5.1f}°C  {:0.0%} ({:0.0%})".format(
+            servosmall_pwm.duty(servosmall)
+
+
+            # oxygene=sparta.read_oxygene()
+            oxygene=0
+
+
+            print("{:12} {:5.1f}°C  {:0.0%} (P={:3.0%} I={:3.0%} D={:3.0%})".format(
                 status, 
                 temp, 
-                (servosmall_want-servo_min)/(servo_max-servo_min), 
-                (servosmall-servo_min)/(servo_max-servo_min)
+                # (servosmall_want-servo_min)/(servo_max-servo_min), 
+                calc_factor(servosmall),
+                (pid._proportional/(servo_max-servo_min)), 
+                calc_factor(pid._error_sum),
+                (pid._differential/(servo_max-servo_min))
             ))
 
 
@@ -142,8 +141,10 @@ def measure_loop():
 
 
             req_data=req_data+'temps temp={},servosmall={},setpoint={},P={},I={},D={},oxygene={}\n'.format(temp, servosmall,pid.setpoint, pid._proportional, pid._error_sum, pid._differential, oxygene)
+
             # if time.time()-last_send>=0:
             # store(req_data)
+
             req_data=""
             last_send=time.time()
         except Exception as e:
@@ -153,44 +154,6 @@ def measure_loop():
         # await uasyncio.sleep_ms(1000)
 
 
-# def ctrl():
-#
-#
-#     while True:
-#         c=sys.stdin.read(1)
-#         # if c=='q':
-#         #     servosmall=servosmall+1
-#         # elif c=='a':
-#         #     servosmall=servosmall-1
-#         # elif c=='w':
-#         #     servosmall=servosmpid
-#         # elif c=='s':
-#         #     servosmall=servosmall-10
-#         # elif c=='e':
-#         #     servosmall=max
-#         # elif c=='d':
-#         #     servosmall=min
-#         if c=='t':
-#             pid.setpoint=pid.setpoint+1
-#         elif c=='g':
-#             pid.setpoint=pid.setpoint-1
-#
-#         print(pid.setpoint)
-#
-#         # if servosmall<min:
-#         #     servosmall=min
-#         #
-#         # if servosmall>max:
-#         #     servosmall=max
-#
-#
-#
-#         # print("servosmall={}".format(servosmall))
-#         # s.duty(servosmall)
-#
-#         # if c=='z':
-#         #     print("SLEEP")
-#         #     s.duty(0)
 
 def run():
     event_loop=uasyncio.get_event_loop()
