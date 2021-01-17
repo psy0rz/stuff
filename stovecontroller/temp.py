@@ -10,11 +10,17 @@ import sys
 import uasyncio
 from pins import *
 
+
+
+
+
+
+
 #pin assignments
-import sparta #D1 en D2
-sck = Pin(D5, Pin.OUT)
+# import sparta #D1 en D2
+sck = Pin(D5, Pin.OUT)  #
 cs = Pin(D6, Pin.OUT)
-so = Pin(D7, Pin.IN)
+so = Pin(D7, Pin.IN)    #
 led = Pin(D4, Pin.OUT) 
 servosmall_pwm = machine.PWM(machine.Pin(D3), freq=50)
 
@@ -76,6 +82,9 @@ def measure_loop():
 
     last_diff=0
     
+
+    ledcount=0
+
     while True:
         try:
             while not sens_pipe.ready():
@@ -106,6 +115,7 @@ def measure_loop():
                 #do the pid magic
                 servosmall_want=int(pid(temp))
 
+
             last_temp=temp
 
             if servosmall==None:
@@ -122,6 +132,7 @@ def measure_loop():
             servosmall_pwm.duty(servosmall)
 
 
+
             # oxygene=sparta.read_oxygene()
             oxygene=0
 
@@ -135,6 +146,14 @@ def measure_loop():
                 calc_factor(pid._error_sum),
                 (pid._differential/(servo_max-servo_min))
             ))
+
+            #led feedback for servo amount
+            ledcount=(ledcount+1)
+            if ledcount>=(1-calc_factor(servosmall))*10:
+                ledcount=0
+                led.value(not led.value())
+
+
 
 
             # print("temp={}, setpoint={}, servo={}".format(temp, pid.setpoint, servosmall))
