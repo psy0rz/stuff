@@ -7,15 +7,25 @@ from machine import Timer
 from PID import PID
 import machine
 import sys
+import uasyncio
+from pins import *
 
-sck = Pin(14, Pin.OUT)
-cs = Pin(12, Pin.OUT)
-so = Pin(13, Pin.IN)
-led = Pin(2, Pin.OUT)
+
+
+
+
+
+
+#pin assignments
+# import sparta #D1 en D2
+sck = Pin(D5, Pin.OUT)  #
+cs = Pin(D6, Pin.OUT)
+so = Pin(D7, Pin.IN)    #
+led = Pin(D4, Pin.OUT) 
+servosmall_pwm = machine.PWM(machine.Pin(D3), freq=50)
+
 
 sens_pipe = MAX6675(sck, cs , so)
-
-
 
 def store(data):
     try:
@@ -39,9 +49,8 @@ def store(data):
 
 last_send=0
 req_data=""
-temp=0
+temp=None
 
-servosmall_pwm = machine.PWM(machine.Pin(5), freq=50)
 # pid = PID(1, 0.1, 0.05, setpoint=180, sample_time=1, proportional_on_measurement=True, output_limits=((27,130)) )
 
 
@@ -49,14 +58,20 @@ servosmall_pwm = machine.PWM(machine.Pin(5), freq=50)
 # pid = PID(4, 0.2, 1, setpoint=config.setpoint, sample_time=1, proportional_on_measurement=False, output_limits=((27,130)) )
 servo_max=130
 servo_min=27
-pid = PID(8, 0.2, 1, setpoint=config.setpoint, sample_time=1, proportional_on_measurement=False, output_limits=((servo_min,servo_max)) )
+pid = PID(8, 0.2, 0, setpoint=config.setpoint, sample_time=0, proportional_on_measurement=False, output_limits=((servo_min,servo_max)) )
+# pid = PID(8, 0.8, 0, setpoint=config.setpoint, sample_time=0, proportional_on_measurement=False, output_limits=((servo_min,servo_max)) )
+# pid = PID(8, 0.4, 0, setpoint=config.setpoint, sample_time=0, proportional_on_measurement=False, output_limits=((servo_min,servo_max)) )
 
-servosmall=int((servo_max-servo_min)/2)
+servosmall=None
 
 start_time=-config.coldstart_time
 last_temp=0
 
-def measure(t):
+
+def calc_factor(pwm):
+    return (pwm-servo_min)/(servo_max-servo_min)
+
+def measure_loop():
     global last_send
     global req_data
     global temp
@@ -64,103 +79,107 @@ def measure(t):
     global start_time
     global last_temp
 
-    temp_total=0
-    temps=0
-    while temps<3:
-        while not sens_pipe.ready():
-            pass
 
-        cur=sens_pipe.read()
-        #skip errornous measurements
-        if temp!=0 and abs(cur-temp)>20:
-            print("SKIP {}".format(cur))
-        else:
-            temp_total=temp_total+cur
-            temps=temps+1
+    last_diff=0
+    
 
-    temp=temp_total/temps
+    ledcount=0
 
-    if temp>=1000:
-        #error, dont waist graph
-        print("READ ERROR")
-        temp=-1
-        return
+    while True:
+        try:
+            while not sens_pipe.ready():
+                pass
 
-    #dont regulate when we're still starting up the stove (extra air outlet is open)
-    if temp<config.coldstart_temp:
-        start_time=time.time()
+            temp_read=sens_pipe.read()
+            if temp_read>=1000:
+                #error, dont waist graph
+                print("TEMP READ ERROR")
+                continue
 
-    if time.time()-start_time>config.coldstart_time and  temp<=config.bypass_open and temp-last_temp<2:
-        #do the pid magic
-        servosmall_want=int(pid(temp))
-    else:
-        #still starting up
-        servosmall_want=servo_max
+            if temp==None:
+                temp=temp_read
 
-    last_temp=temp
+            temp=temp*0.9+ temp_read*0.1
 
-    #servo is slow, so do gradual steps or else it locks up
-    maxstep=10
-    step=max(min(maxstep, servosmall_want-servosmall), -maxstep)
-    if step:
-        servosmall=servosmall+step
-        servosmall_pwm.duty(servosmall)
-    else:
-        #turn off, to prevent annoying noise
-        servosmall_pwm.duty(0)
+            #dont regulate when we're still starting up the stove (extra air outlet is open)
+            if temp<config.coldstart_temp:
+                start_time=time.time()
+            if time.time()-start_time<config.coldstart_time:
+                status="coldstarting"
+                servosmall_want=servo_max
+            if temp>config.bypass_open:
+                status="bypass open"
+                servosmall_want=servo_max
+            else:
+                status="regulating"
+                #do the pid magic
+                servosmall_want=int(pid(temp))
 
 
+            last_temp=temp
 
-    # print("temp={}, setpoint={}, servo={}".format(temp, pid.setpoint, servosmall))
+            if servosmall==None:
+                servosmall=servosmall_want
 
+            #prevent 1 step jitter because of rounding errors
+            diff=servosmall_want-servosmall
+            if diff!=0:
+                #it needs to be either a big step (>1), OR a step in the same direction.
+                if abs(diff)>1 or (diff>0 and last_diff>0) or (diff<0 and last_diff<0):
+                    servosmall=servosmall_want
+                    last_diff=diff
 
-    req_data=req_data+'temps temp={},servosmall={},setpoint={},P={},I={},D={}\n'.format(temp, servosmall,pid.setpoint, pid._proportional, pid._error_sum, pid._differential)
-    # if time.time()-last_send>=0:
-    store(req_data)
-    req_data=""
-    last_send=time.time()
-
-# def ctrl():
-#
-#
-#     while True:
-#         c=sys.stdin.read(1)
-#         # if c=='q':
-#         #     servosmall=servosmall+1
-#         # elif c=='a':
-#         #     servosmall=servosmall-1
-#         # elif c=='w':
-#         #     servosmall=servosmpid
-#         # elif c=='s':
-#         #     servosmall=servosmall-10
-#         # elif c=='e':
-#         #     servosmall=max
-#         # elif c=='d':
-#         #     servosmall=min
-#         if c=='t':
-#             pid.setpoint=pid.setpoint+1
-#         elif c=='g':
-#             pid.setpoint=pid.setpoint-1
-#
-#         print(pid.setpoint)
-#
-#         # if servosmall<min:
-#         #     servosmall=min
-#         #
-#         # if servosmall>max:
-#         #     servosmall=max
-#
-#
-#
-#         # print("servosmall={}".format(servosmall))
-#         # s.duty(servosmall)
-#
-#         # if c=='z':
-#         #     print("SLEEP")
-#         #     s.duty(0)
+            servosmall_pwm.duty(servosmall)
 
 
-tim = Timer(-1)
-tim.init(period=1000, mode=Timer.PERIODIC, callback=measure)
 
-#ctrl()
+            # oxygene=sparta.read_oxygene()
+            oxygene=0
+
+
+            print("{:12} {:5.1f}°C  {:0.0%} (P={:3.0%} I={:3.0%} D={:3.0%})".format(
+                status, 
+                temp, 
+                # (servosmall_want-servo_min)/(servo_max-servo_min), 
+                calc_factor(servosmall),
+                (pid._proportional/(servo_max-servo_min)), 
+                calc_factor(pid._error_sum),
+                (pid._differential/(servo_max-servo_min))
+            ))
+
+            #led feedback for servo amount
+            ledcount=(ledcount+1)
+            if ledcount>=(1-calc_factor(servosmall))*10:
+                ledcount=0
+                led.value(not led.value())
+
+
+
+
+            # print("temp={}, setpoint={}, servo={}".format(temp, pid.setpoint, servosmall))
+
+
+            req_data=req_data+'temps temp={},servosmall={},setpoint={},P={},I={},D={},oxygene={}\n'.format(temp, servosmall,pid.setpoint, pid._proportional, pid._error_sum, pid._differential, oxygene)
+
+            # if time.time()-last_send>=0:
+            # store(req_data)
+
+            req_data=""
+            last_send=time.time()
+        except Exception as e:
+            raise
+            print(str(e))
+
+        # await uasyncio.sleep_ms(1000)
+
+
+
+def run():
+    event_loop=uasyncio.get_event_loop()
+    event_loop.create_task(measure_loop())
+   
+    # # start webinterface?
+    # if config.run_webserver:
+    #     webserver.run()
+    # else:
+    event_loop.run_forever()

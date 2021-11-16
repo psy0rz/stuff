@@ -1,0 +1,71 @@
+#!/bin/bash
+#(C) 2016 edwin@datux.nl - Released under GPL
+JOBDIR=/etc/zabbix/zabbix.jobs
+ZABBIX_CONF=/etc/zabbix/zabbix_agentd.conf
+
+set -e
+
+PAR_JOBNAME=$1
+PAR_INTERVAL=$2
+PAR_EXITCODE=$3
+
+if [ "$PAR_EXITCODE" == "" ]; then
+	echo "Usage: $0 <jobname> <interval> <exitcode> [ <ignorecode>... ] "
+	echo "Interval is used to generate alerts if the job is not run for a specific time. (with margins)"
+	echo " hourly  : job should report every hour"
+	echo " daily   : job should report every day"
+	echo " weekly  : job should report every week"
+	echo " montly  : job should report every month"
+	echo " manual  : job is run manually, not at a specific interval."
+	echo
+	echo "Specify ignorecodes for exitcodes that you want to 'ignore' and report 0 instead. Usefull for ignoring exit code 24 in rsync jobs for example."
+	exit 1
+fi
+
+#ignore certain codes
+shift 3
+for IGNORE in $*; do
+	if [ "$IGNORE" == "$PAR_EXITCODE" ]; then
+		PAR_EXITCODE=0
+		break
+	fi
+done
+
+#add job to job-database
+mkdir -p $JOBDIR &>/dev/null
+
+NEW=0
+if ! [ -e "$JOBDIR/$PAR_JOBNAME" ]; then
+    NEW=1
+fi
+echo "$PAR_INTERVAL" > "$JOBDIR/$PAR_JOBNAME"
+
+
+#NOTE: zabbix 2.2.1 you cant use discovery macros in expressions like nodata({#JOBINTERVAL}), so thats why we use a seperatre discovery for every interval. :(
+
+#gererate a discovery rule for all jobs in db:
+cd $JOBDIR
+JSON=""
+for JOB in *; do
+	NOOK_TIME=`cat $JOB`
+	NODATA_TIME=`cat $JOB`
+	JSON=$JSON',{ "{#JOBNAME}": "'$JOB'", "{#NOOK_TIME}": "'$NOOK_TIME'", "{#NODATA_TIME}": "'$NODATA_TIME'" }'
+done
+
+UPDATES=""
+
+UPDATES=$UPDATES'- job.discovery { "data": [ '${JSON:1}' ] }\n'
+
+#add exitcode of current job
+UPDATES=$UPDATES"- job.exit[$PAR_JOBNAME] $PAR_EXITCODE\n"
+
+
+echo "Sending updates to zabbix:"
+echo -en "$UPDATES"
+if [ "$NEW" == "1" ]; then
+    #partially fails the first time:
+    echo -en "$UPDATES" | zabbix_sender -vv  -c $ZABBIX_CONF -i - || true
+    echo "Waiting for first-time zabbix job discovery..."
+    sleep 65
+fi
+echo -en "$UPDATES" | zabbix_sender -vv  -c $ZABBIX_CONF -i -

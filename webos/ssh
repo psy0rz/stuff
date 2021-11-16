@@ -1,0 +1,10 @@
+#!/bin/bash
+
+#Install Developer mode app.
+#enable it, enable key server
+#ssh rsa encryption key is on the screen
+
+IP=192.168.13.145
+curl http://$IP:9991/webos_rsa > ssh_rsa
+chmod 700 ssh_rsa
+ssh -i ssh_rsa prisoner@$IP -p9922
