@@ -1,0 +1,73 @@
+esphome:
+  name: kachel
+
+esp8266:
+  board: nodemcuv2
+  framework:
+    version: recommended
+
+
+# Enable logging
+logger:
+  level: DEBUG
+
+
+ota:
+  password: ""
+
+wifi:
+  ssid: "sdfsf"
+  password: "safasfsfsdff"
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "kachel Hotspot"
+    password: "xxx"
+
+
+############ IO
+
+status_led:
+  pin:
+    number: D4
+    inverted: true
+
+spi:
+  miso_pin: D7
+  clk_pin: D5
+
+sensor:
+  - platform: max6675
+    name: "temp"
+    cs_pin: D6
+    update_interval: 1s
+
+output:
+  - platform: esp8266_pwm
+    pin: D3
+    frequency: 50 Hz
+    id: air_in
+
+  - platform: esp8266_pwm
+    pin: D2
+    frequency: 50 Hz
+    id: air_out
+
+mqtt:
+  broker: 192.168.13.10
+  on_message:
+      - topic: kachel/air_out
+        qos: 0
+        then:
+          - output.set_level:
+                id: air_out
+                level: !lambda |-
+                  return ::atof(x.c_str());
+
+      - topic: kachel/air_in
+        qos: 0
+        then:
+          - output.set_level:
+                id: air_in
+                level: !lambda |-
+                  return ::atof(x.c_str());
