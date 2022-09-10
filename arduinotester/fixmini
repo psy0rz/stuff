@@ -1,0 +1,16 @@
+#!/bin/bash
+
+#fix arduino pro mini boardloader via Arduino ISP
+while true; do
+while ! /snap/arduino/70/hardware/tools/avr/bin/avrdude -C/snap/arduino/70/hardware/tools/avr/etc/avrdude.conf -q -q -patmega328p -cstk500v1 -P/dev/ttyACM3 -b19200 -Uflash:w:/snap/arduino/70/hardware/arduino/avr/bootloaders/optiboot/optiboot_atmega328.hex:i -Ulock:w:0x0F:m; do
+echo error
+sleep 0
+
+done
+echo KLAAR
+
+sleep 5
+done
+
+
+
