@@ -9,6 +9,23 @@ cap = cv.VideoCapture(0)
 if not cap.isOpened():
     print("Cannot open camera")
     exit()
+
+threshold1=100
+threshold2=200
+
+def change_t1(value):
+    global threshold1
+    threshold1=value
+
+def change_t2(value):
+    global threshold2
+    threshold2=value
+
+cv.namedWindow('cam')
+
+cv.createTrackbar('threshold1', 'cam', threshold1, 255, change_t1)
+cv.createTrackbar('threshold2', 'cam', threshold2, 255, change_t2)
+
 while True:
     # Capture frame-by-frame
     ret, img = cap.read()
@@ -24,11 +41,11 @@ while True:
 
 
 
-    edges = cv.Canny(img, 100,200)
+    edges = cv.Canny(img, threshold1, threshold2)
 
     contours, hierarcy=cv.findContours(edges, mode=cv2.RETR_TREE, method=cv2.CHAIN_APPROX_SIMPLE)
-    # cv2.drawContours(image=img, contours=contours, contourIdx=-1, color=(255,255,255), thickness=1,
-    #                  lineType=cv2.LINE_AA)
+    cv2.drawContours(image=img, contours=contours, contourIdx=-1, color=(255,0,0), thickness=1,
+                     lineType=cv2.LINE_AA)
 
 
     for contour in contours:
@@ -39,7 +56,6 @@ while True:
         w=int(rect[1][0])
         h=int(rect[1][1])
 
-        # cv.drawMarker(img,centerPt , color=(255,0,0))
 
         detectSize=80
 
@@ -52,7 +68,7 @@ while True:
 
             box = np.int0(box)
 
-            cv.drawContours(img, [box], 0, (255, 0, 0), 2)
+            cv.drawContours(img, [box], 0, (0, 0, 255), 2)
             t = np.int0(box)
 
 
@@ -62,7 +78,7 @@ while True:
     # print(edges[0])
 
     cv2.imshow('cam', img)
-    if cv.waitKey(100) == ord('q'):
+    if cv.waitKey(1) == ord('q'):
         break
 
 
