@@ -62,7 +62,7 @@ pid = PID(8, 0.2, 0, setpoint=config.setpoint, sample_time=0, proportional_on_me
 # pid = PID(8, 0.8, 0, setpoint=config.setpoint, sample_time=0, proportional_on_measurement=False, output_limits=((servo_min,servo_max)) )
 # pid = PID(8, 0.4, 0, setpoint=config.setpoint, sample_time=0, proportional_on_measurement=False, output_limits=((servo_min,servo_max)) )
 
-servosmall=None
+servosmall=120
 
 start_time=-config.coldstart_time
 last_temp=0
@@ -126,10 +126,15 @@ def measure_loop():
             if diff!=0:
                 #it needs to be either a big step (>1), OR a step in the same direction.
                 if abs(diff)>1 or (diff>0 and last_diff>0) or (diff<0 and last_diff<0):
-                    servosmall=servosmall_want
-                    last_diff=diff
+                    if diff>0:
+                        servosmall=servosmall+1
+                    else:
+                        servosmall=servosmall-1
 
-            servosmall_pwm.duty(servosmall)
+                    last_diff=diff
+                    servosmall_pwm.duty(servosmall)
+            else:
+                servosmall_pwm.duty(0)
 
 
 
@@ -137,14 +142,16 @@ def measure_loop():
             oxygene=0
 
 
-            print("{:12} {:5.1f}°C  {:0.0%} (P={:3.0%} I={:3.0%} D={:3.0%})".format(
+            print("{:12} {:5.1f}°C  {:0.0%} (P={:3.0%} I={:3.0%} D={:3.0%} SERV={:d})".format(
                 status, 
                 temp, 
                 # (servosmall_want-servo_min)/(servo_max-servo_min), 
                 calc_factor(servosmall),
                 (pid._proportional/(servo_max-servo_min)), 
                 calc_factor(pid._error_sum),
-                (pid._differential/(servo_max-servo_min))
+                (pid._differential/(servo_max-servo_min)),
+                servosmall
+                
             ))
 
             #led feedback for servo amount
