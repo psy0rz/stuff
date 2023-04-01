@@ -1,0 +1,6 @@
+NET="$1"
+
+nmap -oG - -sL -n "$NET" |grep -v '#' | egrep -o '[0-9]*\.[0-9.]+.[0-9.]+'  > net.tmp
+fping -f net.tmp 2>&1|grep 'Host Unreachable' |egrep -o '[0-9]*\.[0-9.]+.[0-9.]+' |sort|uniq  > unreach.tmp
+cat net.tmp unreach.tmp|sort|uniq -u 
+

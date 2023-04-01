@@ -1,0 +1,7 @@
+FILE=$1
+
+while sleep 1; do
+    echo ------------- `date`
+    fping -u -f $FILE 2>&1|grep 'Host Unreachable' |sort |uniq
+done
+
