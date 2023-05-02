@@ -65,8 +65,11 @@ galg=[
           #
       ##########    
     """,
-
 ]
+
+
+
+
 
 def speel():
     fh = open('nederlands.txt')

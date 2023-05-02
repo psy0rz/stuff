@@ -1,0 +1,72 @@
+#!/bin/bash
+
+#(C)edwin@datux.nl -- GPL
+
+HOSTS="$1"
+NAME="$2"
+
+[ "$HOSTS" ] || exit 1
+[ "$NAME" ] || exit 1
+
+nmaprun() {
+    echo -en "Scanning...\r"
+    nmap --stats 1 $@ | grep --line-buffered Timing: | while read LINE; do
+        echo -en "$LINE       \r"
+    done
+    echo
+
+}
+
+grepips() {
+    grep -v '#' "$1" | cut -f2 -d' '
+
+}
+
+PAD_LENGTH=$((COLS - max_length - 1))
+
+SNAPSHOT="$NAME.snapshot"
+CURRENT="$NAME.current"
+SCAN="$NAME.tmp"
+
+if ! [ -e "$SNAPSHOT" ]; then
+    echo "Creating initial scan snapshot ip list..."
+    nmaprun --min-rate 10 --max-rate 10 -n -sn --open -oG "$SCAN" $HOSTS
+    echo
+    grepips "$SCAN" >"$SNAPSHOT"
+fi
+
+while true; do
+    nmaprun --min-rate 10 --max-rate 10 -n -sn --open -oG "$SCAN" -iL "$SNAPSHOT"
+    grepips "$SCAN" >"$CURRENT"
+
+    #screen layout
+    MAX_LENGTH=16
+    COLS=$(tput cols)
+    ((PER_LINE = (COLS / MAX_LENGTH)))
+
+    tput reset
+
+    TOTAL=0
+    OFFLINE=0
+    THIS_LINE=0
+    for IP in $(cat "$SNAPSHOT"); do
+        ((TOTAL++))
+        if ! grep "$IP" "$CURRENT" >/dev/null; then
+            tput setaf 1
+            ((OFFLINE++))
+        fi
+
+        printf "%-${MAX_LENGTH}s" "$IP"
+        tput sgr0
+
+        ((THIS_LINE++))
+        if [ $THIS_LINE -ge $PER_LINE ]; then
+            THIS_LINE=0
+            echo
+
+        fi
+    done
+    echo
+    echo "$OFFLINE/$TOTAL offline"
+
+done
