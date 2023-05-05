@@ -51,7 +51,7 @@ while true; do
     THIS_LINE=0
     for IP in $(cat "$SNAPSHOT"); do
         ((TOTAL++))
-        if ! grep "$IP" "$CURRENT" >/dev/null; then
+        if ! grep -x "$IP" "$CURRENT" >/dev/null; then
             tput setab 1
             ((OFFLINE++))
         else
