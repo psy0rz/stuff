@@ -31,7 +31,7 @@ if ! [ -e "$SNAPSHOT" ]; then
     echo "Creating initial scan snapshot ip list..."
     nmaprun -n -sn --open -oG "$SCAN" $HOSTS
     echo
-    grepips "$SCAN" |sort  >"$SNAPSHOT"
+    grepips "$SCAN" | sort -t. -n -k1,1 -k2,2 -k3,3 -k4,4   >"$SNAPSHOT"
     cp "$SNAPSHOT" "$CURRENT"
 fi
 
