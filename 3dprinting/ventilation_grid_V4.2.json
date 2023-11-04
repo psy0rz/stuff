@@ -1,0 +1,30 @@
+{
+    "parameterSets": {
+        "badkamer": {
+            "$fn": "80",
+            "brim_height": "1",
+            "brim_radius": "241.4",
+            "brim_width": "30",
+            "cutout_length": "96",
+            "cutout_width": "96",
+            "edge_height": "2",
+            "edge_width": "1",
+            "grid_x": "6",
+            "grid_y": "6",
+            "grill_angle_x": "0",
+            "grill_angle_y": "0",
+            "grill_height": "5",
+            "grill_rotation": "0",
+            "grill_thickness_x": "0.3",
+            "grill_thickness_y": "0.8",
+            "grill_x_shift": "0",
+            "grill_y_shift": "0",
+            "height": "30",
+            "tube_rounding": "363.2",
+            "tube_wall": "1"
+        }
+    },
+    "fileFormatVersion": "1",
+    "parameterSets": "",
+    "parameterSets": ""
+}
